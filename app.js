@@ -299,7 +299,7 @@ async function renderHome() {
   app.innerHTML = `
     <section class="promo-hero">
       <div class="promo-hero-copy">
-        <span class="eyebrow">Kuma Premium Shop</span>
+        <span class="eyebrow">FKP Shop</span>
         <h1>${escapeHtml(settings.hero_title)}</h1>
         <p>${escapeHtml(settings.hero_subtitle)}</p>
         <div class="hero-points" aria-label="จุดเด่นบริการ">
@@ -404,19 +404,19 @@ function renderServicePlans(plans) {
                         ? `<img class="plan-icon" src="${attr(plan.icon_url)}" alt="" />`
                         : `<span class="plan-icon-text">${escapeHtml(plan.title.slice(0, 1).toUpperCase())}</span>`
                     }
-                    <span>Kuma Premium Shop</span>
+                    <span>FKP Shop</span>
                   </div>
                   <h3>${escapeHtml(plan.title)}</h3>
                   ${plan.description ? `<p class="plan-description">${escapeHtml(plan.description)}</p>` : ""}
+                  <div class="plan-meta-line">
+                    <span>${escapeHtml(availability.label)}</span>
+                  </div>
                   ${renderFeatureTags(plan.features)}
                   <div class="plan-card-footer">
-                    <div>
-                      <span>เริ่มต้น</span>
-                      <strong class="plan-price">${escapeHtml(plan.price_label || "-")}</strong>
-                    </div>
-                    <span class="plan-slots">${escapeHtml(availability.label)}</span>
+                    <span>ราคา</span>
+                    <strong class="plan-price">${escapeHtml(plan.price_label || "-")}</strong>
                   </div>
-                  ${renderPlanActions(settings, availability)}
+                  ${renderCompactPlanActions(settings, availability)}
                 </div>
               </article>
             `;
@@ -441,6 +441,26 @@ function renderPlanActions(settings, availability) {
       ${
         settings.facebook_url
           ? `<a class="ghost-button link-button" href="${attr(settings.facebook_url)}" target="_blank" rel="noopener">${escapeHtml(settings.facebook_label || "Facebook")}</a>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+function renderCompactPlanActions(settings, availability) {
+  if (!settings.line_url && !settings.facebook_url) return "";
+  const isFull = availability.status === "full";
+
+  return `
+    <div class="plan-actions compact">
+      ${
+        settings.line_url
+          ? `<a class="primary-button link-button ${isFull ? "is-disabled" : ""}" href="${attr(settings.line_url)}" target="_blank" rel="noopener">${isFull ? "สอบถามคิว" : "ติดต่อ"}</a>`
+          : ""
+      }
+      ${
+        settings.facebook_url
+          ? `<a class="ghost-button link-button" href="${attr(settings.facebook_url)}" target="_blank" rel="noopener">FB</a>`
           : ""
       }
     </div>
@@ -576,7 +596,7 @@ function renderMembersAdmin() {
         </label>
         <label class="field">
           <span>รหัสเข้าดู</span>
-          <input name="access_code" value="${attr(record?.access_code)}" placeholder="KUMA-A7K29" required />
+          <input name="access_code" value="${attr(record?.access_code)}" placeholder="FKP-A7K29" required />
         </label>
         <label class="field">
           <span>วันเกิด: วัน</span>
@@ -939,14 +959,14 @@ function renderCustomer() {
       <section class="customer-login">
         <div class="customer-login-card">
           <div class="customer-login-copy">
-            <span class="eyebrow">Kuma Member</span>
+            <span class="eyebrow">FKP Member</span>
             <h1>ตรวจสอบข้อมูลกลุ่ม</h1>
             <p>ข้อมูลกลุ่มและวันชำระล่าสุด</p>
           </div>
           <form class="form-grid" data-form="customer-code">
             <label class="field full">
               <span>รหัสลูกค้า</span>
-              <input name="access_code" autocomplete="one-time-code" placeholder="KUMA-A7K29" required />
+              <input name="access_code" autocomplete="one-time-code" placeholder="FKP-A7K29" required />
               <small class="field-hint">รหัสนี้ได้รับจากร้านเท่านั้น</small>
             </label>
             <div class="toolbar full">
@@ -1568,7 +1588,7 @@ function getDueSoonMembers() {
 function getDefaultSiteSettings() {
   return {
     id: 1,
-    hero_title: "Kuma Premium Shop",
+    hero_title: "FKP Shop",
     hero_subtitle: "บริการพรีเมียม ราคาชัดเจน พร้อมช่องทางติดต่อร้าน",
     line_url: "",
     line_label: "ติดต่อ LINE",

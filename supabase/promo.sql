@@ -3,7 +3,7 @@
 
 create table if not exists public.site_settings (
   id int primary key default 1 check (id = 1),
-  hero_title text not null default 'Kuma Premium Shop',
+  hero_title text not null default 'FKP Shop',
   hero_subtitle text,
   line_url text,
   line_label text not null default 'ติดต่อ LINE',
@@ -71,7 +71,7 @@ using (public.is_admin())
 with check (public.is_admin());
 
 insert into public.site_settings (id, hero_title, hero_subtitle)
-values (1, 'Kuma Premium Shop', 'บริการพรีเมียม ราคาชัดเจน พร้อมช่องทางติดต่อร้าน')
+values (1, 'FKP Shop', 'บริการพรีเมียม ราคาชัดเจน พร้อมช่องทางติดต่อร้าน')
 on conflict (id) do nothing;
 
 create or replace function public.get_public_home()
@@ -93,7 +93,7 @@ as $$
       from public.site_settings s
       where s.id = 1
     ), jsonb_build_object(
-      'hero_title', 'Kuma Premium Shop',
+      'hero_title', 'FKP Shop',
       'hero_subtitle', 'บริการพรีเมียม ราคาชัดเจน พร้อมช่องทางติดต่อร้าน',
       'line_url', null,
       'line_label', 'ติดต่อ LINE',
