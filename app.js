@@ -635,7 +635,13 @@ function renderMembersAdmin() {
         </label>
         <label class="field">
           <span>วันที่ต้องชำระ</span>
-          <input name="payment_due_date" type="date" value="${attr(record?.payment_due_date)}" />
+          <input
+            name="payment_due_date"
+            inputmode="numeric"
+            value="${attr(formatDateInputDisplay(record?.payment_due_date))}"
+            placeholder="16/05/2026"
+          />
+          <small class="field-hint">รูปแบบ วัน/เดือน/ปี เช่น 16/05/2026</small>
         </label>
         <div class="toolbar full">
           <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มสมาชิก"}</button>
@@ -1425,7 +1431,7 @@ async function saveMember(form) {
     birthday_year: numberOrNull(formData.get("birthday_year")),
     email: clean(formData.get("email")),
     email_type: clean(formData.get("email_type")) || "store",
-    payment_due_date: clean(formData.get("payment_due_date")) || null,
+    payment_due_date: parsePaymentDueDate(formData.get("payment_due_date")),
     data_updated_date: todayInput()
   };
 
@@ -1745,7 +1751,18 @@ function getDueInfo(value) {
 }
 
 function renderDueBadge(dueInfo) {
-  return `<span class="badge due-${dueInfo.status}">${escapeHtml(dueInfo.label)}</span>`;
+  return `
+    <span class="badge due-${dueInfo.status} due-badge">
+      <span>${escapeHtml(dueInfo.label)}</span>
+      <strong>${escapeHtml(formatDueDistance(dueInfo.days))}</strong>
+    </span>
+  `;
+}
+
+function formatDueDistance(days) {
+  if (days < 0) return `เลยมาแล้ว ${Math.abs(days)} วัน`;
+  if (days === 0) return "วันนี้";
+  return `อีก ${days} วัน`;
 }
 
 function renderStatusBadge(status) {
@@ -1787,6 +1804,53 @@ function formatDate(value) {
   const [year, month, day] = date.split("-");
   if (!year || !month || !day) return date;
   return `${day}/${month}/${year}`;
+}
+
+function formatDateInputDisplay(value) {
+  if (!value) return "";
+  const date = String(value).slice(0, 10);
+  const [year, month, day] = date.split("-");
+  if (!year || !month || !day) return "";
+  return `${day}/${month}/${year}`;
+}
+
+function parsePaymentDueDate(value) {
+  const raw = clean(value);
+  if (!raw) return null;
+
+  const thaiDate = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (thaiDate) {
+    return toIsoDate(thaiDate[3], thaiDate[2], thaiDate[1]);
+  }
+
+  const isoDate = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoDate) {
+    return toIsoDate(isoDate[1], isoDate[2], isoDate[3]);
+  }
+
+  throw new Error("วันที่ต้องชำระต้องเป็นรูปแบบ วัน/เดือน/ปี เช่น 16/05/2026");
+}
+
+function toIsoDate(year, month, day) {
+  const y = Number(year);
+  const m = Number(month);
+  const d = Number(day);
+  const parsed = new Date(y, m - 1, d);
+
+  if (
+    !Number.isInteger(y) ||
+    !Number.isInteger(m) ||
+    !Number.isInteger(d) ||
+    y < 1900 ||
+    y > 2200 ||
+    parsed.getFullYear() !== y ||
+    parsed.getMonth() !== m - 1 ||
+    parsed.getDate() !== d
+  ) {
+    throw new Error("วันที่ต้องชำระไม่ถูกต้อง");
+  }
+
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 function parseDateInput(value) {

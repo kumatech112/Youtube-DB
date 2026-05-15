@@ -507,6 +507,16 @@ code {
   color: var(--danger);
 }
 
+.due-badge {
+  align-items: baseline;
+  gap: 5px;
+}
+
+.due-badge strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .customer-entry {
   max-width: 520px;
   margin: 42px auto 0;
