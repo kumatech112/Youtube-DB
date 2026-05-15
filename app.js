@@ -32,6 +32,7 @@ const state = {
 
 document.addEventListener("click", handleClick);
 document.addEventListener("submit", handleSubmit);
+document.addEventListener("keydown", handleKeydown);
 window.addEventListener("popstate", () => {
   state.route = resolveRoute();
   state.editing = null;
@@ -346,7 +347,7 @@ function renderHomeAnnouncements(items) {
           .map(
             (item) => `
               <article class="announcement-item">
-                ${item.image_url ? `<img src="${attr(item.image_url)}" alt="${attr(item.title)}" />` : ""}
+                ${renderAnnouncementImage(item)}
                 <div class="announcement-body">
                   <span class="badge">${escapeHtml(contentTypeLabel(item.content_type))}</span>
                   <h3>${escapeHtml(item.title)}</h3>
@@ -358,6 +359,23 @@ function renderHomeAnnouncements(items) {
           .join("")}
       </div>
     </section>
+  `;
+}
+
+function renderAnnouncementImage(item) {
+  if (!item.image_url) return "";
+
+  return `
+    <button
+      class="announcement-image-button"
+      type="button"
+      data-action="open-image"
+      data-src="${attr(item.image_url)}"
+      data-title="${attr(item.title)}"
+      aria-label="ดูรูปเต็ม ${attr(item.title)}"
+    >
+      <img src="${attr(item.image_url)}" alt="${attr(item.title)}" loading="lazy" />
+    </button>
   `;
 }
 
@@ -514,10 +532,6 @@ function renderGroupsAdmin() {
             ${option("maintenance", "ปรับปรุง", record?.status)}
           </select>
         </label>
-        <label class="field">
-          <span>วันที่อัปเดทข้อมูล</span>
-          <input name="data_updated_date" type="date" value="${attr(record?.data_updated_date || todayInput())}" />
-        </label>
         <div class="toolbar full">
           <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มกลุ่ม"}</button>
           ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
@@ -623,10 +637,6 @@ function renderMembersAdmin() {
           <span>วันที่ต้องชำระ</span>
           <input name="payment_due_date" type="date" value="${attr(record?.payment_due_date)}" />
         </label>
-        <label class="field">
-          <span>วันที่อัปเดทข้อมูล</span>
-          <input name="data_updated_date" type="date" value="${attr(record?.data_updated_date || todayInput())}" />
-        </label>
         <div class="toolbar full">
           <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มสมาชิก"}</button>
           ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
@@ -727,10 +737,6 @@ function renderAnnouncementsAdmin() {
         <label class="field">
           <span>URL รูปภาพ</span>
           <input name="image_url" value="${attr(record?.image_url)}" />
-        </label>
-        <label class="field">
-          <span>วันที่อัปเดทข้อมูล</span>
-          <input name="data_updated_date" type="date" value="${attr(record?.data_updated_date || todayInput())}" />
         </label>
         <label class="check-row">
           <input name="is_active" type="checkbox" ${record?.is_active === false ? "" : "checked"} />
@@ -1046,7 +1052,7 @@ function renderCustomerAnnouncements(items) {
           .map(
             (item) => `
               <article class="announcement-item">
-                ${item.image_url ? `<img src="${attr(item.image_url)}" alt="${attr(item.title)}" />` : ""}
+                ${renderAnnouncementImage(item)}
                 <div class="announcement-body">
                   <span class="badge">${escapeHtml(contentTypeLabel(item.content_type))}</span>
                   <h3>${escapeHtml(item.title)}</h3>
@@ -1232,6 +1238,12 @@ async function handleSubmit(event) {
 }
 
 async function handleClick(event) {
+  const lightboxBackdrop = event.target.closest("[data-lightbox-backdrop]");
+  if (lightboxBackdrop && event.target === lightboxBackdrop) {
+    closeImageLightbox();
+    return;
+  }
+
   const nav = event.target.closest("[data-nav]");
   if (nav) {
     navigate(nav.dataset.nav);
@@ -1252,6 +1264,16 @@ async function handleClick(event) {
   const { action, id } = actionButton.dataset;
 
   try {
+    if (action === "open-image") {
+      openImageLightbox(actionButton.dataset.src, actionButton.dataset.title || "รูปภาพ");
+      return;
+    }
+
+    if (action === "close-image") {
+      closeImageLightbox();
+      return;
+    }
+
     if (action === "logout") {
       await supabase.auth.signOut();
       state.adminLoaded = false;
@@ -1318,6 +1340,12 @@ async function handleClick(event) {
   }
 }
 
+function handleKeydown(event) {
+  if (event.key === "Escape") {
+    closeImageLightbox();
+  }
+}
+
 async function loginAdmin(form) {
   const formData = new FormData(form);
   const email = String(formData.get("email") || "").trim();
@@ -1374,7 +1402,7 @@ async function saveGroup(form) {
   const payload = {
     group_name: clean(formData.get("group_name")),
     status: clean(formData.get("status")) || "active",
-    data_updated_date: clean(formData.get("data_updated_date")) || todayInput()
+    data_updated_date: todayInput()
   };
 
   if (record) {
@@ -1399,7 +1427,7 @@ async function saveMember(form) {
     email: clean(formData.get("email")),
     email_type: clean(formData.get("email_type")) || "store",
     payment_due_date: clean(formData.get("payment_due_date")) || null,
-    data_updated_date: clean(formData.get("data_updated_date")) || todayInput()
+    data_updated_date: todayInput()
   };
 
   if (!payload.access_code) {
@@ -1436,7 +1464,7 @@ async function saveAnnouncement(form) {
     image_url: imageUrl,
     is_active: formData.get("is_active") === "on",
     display_order: numberOrNull(formData.get("display_order")) || 0,
-    data_updated_date: clean(formData.get("data_updated_date")) || todayInput()
+    data_updated_date: todayInput()
   };
 
   if (record) {
@@ -1783,6 +1811,31 @@ function numberOrNull(value) {
 
 function clean(value) {
   return String(value ?? "").trim();
+}
+
+function openImageLightbox(src, title) {
+  if (!src) return;
+  closeImageLightbox();
+
+  const lightbox = document.createElement("div");
+  lightbox.className = "image-lightbox";
+  lightbox.dataset.lightboxBackdrop = "";
+  lightbox.innerHTML = `
+    <div class="image-lightbox-dialog" role="dialog" aria-modal="true" aria-label="${attr(title)}">
+      <div class="image-lightbox-head">
+        <h2>${escapeHtml(title)}</h2>
+        <button class="image-lightbox-close" type="button" data-action="close-image">ปิด</button>
+      </div>
+      <img src="${attr(src)}" alt="${attr(title)}" />
+    </div>
+  `;
+  document.body.appendChild(lightbox);
+  document.body.classList.add("has-lightbox");
+}
+
+function closeImageLightbox() {
+  document.querySelector(".image-lightbox")?.remove();
+  document.body.classList.remove("has-lightbox");
 }
 
 function escapeHtml(value) {
