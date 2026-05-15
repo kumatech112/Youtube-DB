@@ -548,9 +548,9 @@ code {
 .promo-hero-copy {
   display: grid;
   align-content: center;
-  gap: 18px;
-  min-height: 380px;
-  padding: clamp(22px, 5vw, 44px);
+  gap: 14px;
+  min-height: 260px;
+  padding: clamp(20px, 4vw, 36px);
   background:
     radial-gradient(circle at 88% 12%, rgba(248, 187, 208, 0.48), transparent 28%),
     linear-gradient(145deg, #ffffff 0%, #fff2f6 58%, #f9d8e3 100%);
@@ -559,7 +559,7 @@ code {
 .promo-hero-copy h1 {
   max-width: 760px;
   margin: 0;
-  font-size: clamp(34px, 7vw, 68px);
+  font-size: clamp(34px, 5vw, 56px);
   line-height: 1.05;
 }
 
@@ -567,14 +567,14 @@ code {
   max-width: 640px;
   margin: 0;
   color: var(--muted);
-  font-size: clamp(17px, 2.5vw, 22px);
+  font-size: clamp(16px, 2vw, 19px);
 }
 
 .promo-hero-panel {
   display: grid;
   align-content: stretch;
-  gap: 12px;
-  padding: 24px;
+  gap: 10px;
+  padding: 18px;
   background: #fff;
 }
 
@@ -597,7 +597,7 @@ code {
   display: grid;
   align-content: center;
   gap: 8px;
-  padding: 18px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-2);
@@ -615,7 +615,7 @@ code {
 }
 
 .hero-mini-card strong {
-  font-size: clamp(42px, 8vw, 72px);
+  font-size: clamp(36px, 6vw, 58px);
   line-height: 0.95;
 }
 
@@ -734,18 +734,15 @@ code {
   padding: 10px;
 }
 
-.plan-seller-row {
+.plan-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 800;
 }
 
 .plan-card h3 {
   margin: 0;
-  min-height: 42px;
+  min-height: 0;
   color: var(--text);
   font-size: 16px;
   font-weight: 800;
@@ -787,11 +784,10 @@ code {
 }
 
 .plan-description {
-  display: none;
-  min-height: 0;
+  min-height: 38px;
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.35;
   overflow: hidden;
   display: -webkit-box;
@@ -1318,12 +1314,12 @@ code {
 
   .promo-hero-copy {
     min-height: auto;
-    gap: 12px;
-    padding: 18px;
+    gap: 10px;
+    padding: 16px;
   }
 
   .promo-hero-copy h1 {
-    font-size: 34px;
+    font-size: 30px;
   }
 
   .promo-hero-copy p {
@@ -1375,10 +1371,6 @@ code {
     padding: 10px;
   }
 
-  .plan-seller-row {
-    font-size: 12px;
-  }
-
   .plan-icon,
   .plan-icon-text {
     width: 24px;
@@ -1386,8 +1378,12 @@ code {
   }
 
   .plan-card h3 {
-    min-height: 36px;
     font-size: 14px;
+  }
+
+  .plan-description {
+    min-height: 34px;
+    font-size: 12px;
   }
 
   .plan-meta-line {

@@ -299,7 +299,6 @@ async function renderHome() {
   app.innerHTML = `
     <section class="promo-hero">
       <div class="promo-hero-copy">
-        <span class="eyebrow">FKP Shop</span>
         <h1>${escapeHtml(settings.hero_title)}</h1>
         <p>${escapeHtml(settings.hero_subtitle)}</p>
         <div class="hero-points" aria-label="จุดเด่นบริการ">
@@ -398,16 +397,15 @@ function renderServicePlans(plans) {
                   <span class="plan-availability">${renderPlanAvailabilityBadge(availability)}</span>
                 </div>
                 <div class="plan-card-body">
-                  <div class="plan-seller-row">
+                  <div class="plan-title-row">
                     ${
                       plan.icon_url
                         ? `<img class="plan-icon" src="${attr(plan.icon_url)}" alt="" />`
                         : `<span class="plan-icon-text">${escapeHtml(plan.title.slice(0, 1).toUpperCase())}</span>`
                     }
-                    <span>FKP Shop</span>
+                    <h3>${escapeHtml(plan.title)}</h3>
                   </div>
-                  <h3>${escapeHtml(plan.title)}</h3>
-                  ${plan.description ? `<p class="plan-description">${escapeHtml(plan.description)}</p>` : ""}
+                  <p class="plan-description">${escapeHtml(plan.description || "รายละเอียดบริการ")}</p>
                   <div class="plan-meta-line">
                     <span>${escapeHtml(availability.label)}</span>
                   </div>
