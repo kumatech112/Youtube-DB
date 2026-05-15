@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YouTube Premium Manager</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <button class="brand" type="button" data-nav="customer">
+        <span class="brand-mark">YP</span>
+        <span>YouTube Premium Manager</span>
+      </button>
+      <nav class="topnav" aria-label="Main navigation">
+        <button type="button" data-nav="customer">หน้าลูกค้า</button>
+      </nav>
+    </header>
+
+    <main id="app" class="app-shell">
+      <section class="empty-state">
+        <h1>กำลังโหลดระบบ</h1>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
