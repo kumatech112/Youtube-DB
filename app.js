@@ -290,6 +290,11 @@ async function renderHome() {
   }
 
   const settings = getSiteSettings();
+  const activePlanCount = state.servicePlans.filter((plan) => plan.is_active).length || 0;
+  const availablePlanCount = state.servicePlans.filter((plan) => {
+    const availability = getPlanAvailability(plan);
+    return plan.is_active && availability.status !== "full";
+  }).length;
 
   app.innerHTML = `
     <section class="promo-hero">
@@ -297,16 +302,26 @@ async function renderHome() {
         <span class="eyebrow">Kuma Premium Shop</span>
         <h1>${escapeHtml(settings.hero_title)}</h1>
         <p>${escapeHtml(settings.hero_subtitle)}</p>
+        <div class="hero-points" aria-label="จุดเด่นบริการ">
+          <span>ราคาชัดเจน</span>
+          <span>แจ้งสถานะว่าง/เต็ม</span>
+          <span>ติดต่อร้านได้ทันที</span>
+        </div>
         <div class="toolbar">
           ${settings.line_url ? `<a class="primary-button link-button" href="${attr(settings.line_url)}" target="_blank" rel="noopener">${escapeHtml(settings.line_label || "ติดต่อ LINE")}</a>` : ""}
           ${settings.facebook_url ? `<a class="ghost-button link-button" href="${attr(settings.facebook_url)}" target="_blank" rel="noopener">${escapeHtml(settings.facebook_label || "ติดต่อ Facebook")}</a>` : ""}
-          <button class="ghost-button" type="button" data-nav="customer">เช็กข้อมูลสมาชิก</button>
         </div>
       </div>
       <div class="promo-hero-panel">
-        <span class="badge success">พร้อมให้บริการ</span>
-        <strong>${state.servicePlans.filter((plan) => plan.is_active).length || 0}</strong>
-        <span>แพ็กเกจที่เปิดแสดง</span>
+        <div class="hero-mini-card primary">
+          <span>พร้อมขาย</span>
+          <strong>${availablePlanCount}</strong>
+        </div>
+        <div class="hero-mini-card">
+          <span>บริการทั้งหมด</span>
+          <strong>${activePlanCount}</strong>
+        </div>
+        <button class="ghost-button" type="button" data-nav="customer">เช็กข้อมูลสมาชิก</button>
       </div>
     </section>
 
@@ -359,6 +374,8 @@ function renderServicePlans(plans) {
     `;
   }
 
+  const settings = getSiteSettings();
+
   return `
     <section class="promo-section">
       <div class="section-header">
@@ -395,6 +412,7 @@ function renderServicePlans(plans) {
                     <span>${escapeHtml(availability.label)}</span>
                   </div>
                   ${renderFeatureList(plan.features)}
+                  ${renderPlanActions(settings, availability)}
                 </div>
               </article>
             `;
@@ -402,6 +420,26 @@ function renderServicePlans(plans) {
           .join("")}
       </div>
     </section>
+  `;
+}
+
+function renderPlanActions(settings, availability) {
+  if (!settings.line_url && !settings.facebook_url) return "";
+  const isFull = availability.status === "full";
+
+  return `
+    <div class="plan-actions">
+      ${
+        settings.line_url
+          ? `<a class="primary-button link-button ${isFull ? "is-disabled" : ""}" href="${attr(settings.line_url)}" target="_blank" rel="noopener">${isFull ? "สอบถามคิว" : escapeHtml(settings.line_label || "ติดต่อ LINE")}</a>`
+          : ""
+      }
+      ${
+        settings.facebook_url
+          ? `<a class="ghost-button link-button" href="${attr(settings.facebook_url)}" target="_blank" rel="noopener">${escapeHtml(settings.facebook_label || "Facebook")}</a>`
+          : ""
+      }
+    </div>
   `;
 }
 
