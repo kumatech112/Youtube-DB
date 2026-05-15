@@ -25,6 +25,7 @@ const state = {
   announcements: [],
   editing: null,
   portal: null,
+  portalAccessCode: null,
   selectedGroupId: null
 };
 
@@ -673,51 +674,80 @@ function renderAnnouncementsTable() {
 function renderCustomer() {
   if (!state.portal) {
     app.innerHTML = `
-      <section class="customer-entry">
-        <div class="section-block">
-          <div class="section-header">
-            <div>
-              <h1>ตรวจสอบกลุ่มของคุณ</h1>
-              <p>กรอกรหัสที่ได้รับจากร้าน</p>
-            </div>
+      <section class="customer-login">
+        <div class="customer-login-card">
+          <div class="customer-login-copy">
+            <span class="eyebrow">Member Portal</span>
+            <h1>ตรวจสอบข้อมูลกลุ่ม</h1>
+            <p>ข้อมูลกลุ่มและวันชำระล่าสุด</p>
           </div>
           <form class="form-grid" data-form="customer-code">
             <label class="field full">
               <span>รหัสลูกค้า</span>
               <input name="access_code" autocomplete="one-time-code" placeholder="YT-A7K29" required />
+              <small class="field-hint">รหัสนี้ได้รับจากร้านเท่านั้น</small>
             </label>
             <div class="toolbar full">
               <button class="primary-button" type="submit">ดูข้อมูล</button>
             </div>
           </form>
+          <div class="customer-login-note">
+            <strong>สำหรับลูกค้าของร้าน</strong>
+            <span>ข้อมูลจะแสดงตามรหัสที่ได้รับเท่านั้น</span>
+          </div>
         </div>
       </section>
     `;
     return;
   }
 
+  const groups = state.portal.groups || [];
   const selectedGroup =
-    state.portal.groups.find((group) => group.id === state.selectedGroupId) || null;
+    groups.find((group) => group.id === state.selectedGroupId) || null;
+  const summary = getCustomerPortalSummary(groups);
 
   app.innerHTML = `
-    <div class="page-header">
+    <div class="customer-page-header">
       <div>
-        <h1>${escapeHtml(state.portal.customer.display_name)}</h1>
-        <p>ข้อมูลกลุ่มที่ร้านกำหนดให้รหัสนี้</p>
+        <span class="eyebrow">ข้อมูลของคุณ</span>
+        <h1>สวัสดี ${escapeHtml(state.portal.customer.display_name)}</h1>
+        <p>${selectedGroup ? "รายละเอียดกลุ่มที่เลือก" : "กลุ่มที่คุณสามารถดูได้"}</p>
       </div>
       <div class="toolbar">
         ${selectedGroup ? `<button class="ghost-button" type="button" data-action="back-groups">กลับไปหน้ากลุ่ม</button>` : ""}
-        <button class="danger-button" type="button" data-action="clear-customer">ออกจากข้อมูลนี้</button>
+        <button class="ghost-button" type="button" data-action="refresh-customer">รีเฟรชข้อมูล</button>
+        <button class="danger-button" type="button" data-action="clear-customer">ออกจากหน้านี้</button>
       </div>
     </div>
 
+    ${selectedGroup ? "" : renderCustomerSummary(summary)}
     ${renderCustomerAnnouncements(state.portal.announcements || [])}
 
     ${
       selectedGroup
         ? renderCustomerGroupDetail(selectedGroup)
-        : renderCustomerGroupCards(state.portal.groups || [])
+        : renderCustomerGroupCards(groups)
     }
+  `;
+}
+
+function renderCustomerSummary(summary) {
+  return `
+    <section class="customer-summary">
+      <div class="summary-card">
+        <span>กลุ่มทั้งหมด</span>
+        <strong>${summary.groupCount}</strong>
+      </div>
+      <div class="summary-card">
+        <span>ใช้งานได้</span>
+        <strong>${summary.activeCount}</strong>
+      </div>
+      <div class="summary-card wide">
+        <span>วันชำระถัดไป</span>
+        <strong>${summary.nextDue ? formatDate(summary.nextDue.date) : "-"}</strong>
+        ${summary.nextDue ? renderDueBadge(summary.nextDue) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
+      </div>
+    </section>
   `;
 }
 
@@ -725,7 +755,7 @@ function renderCustomerAnnouncements(items) {
   if (!items.length) return "";
 
   return `
-    <section class="section-block">
+    <section class="customer-section">
       <div class="section-header">
         <div>
           <h2>ประกาศและโปรโมชั่น</h2>
@@ -757,7 +787,7 @@ function renderCustomerGroupCards(groups) {
   }
 
   return `
-    <section class="section-block">
+    <section class="customer-section">
       <div class="section-header">
         <div>
           <h2>กลุ่มของคุณ</h2>
@@ -765,15 +795,29 @@ function renderCustomerGroupCards(groups) {
       </div>
       <div class="group-grid">
         ${groups
-          .map(
-            (group) => `
+          .map((group) => {
+            const due = getGroupDueSummary(group);
+            const memberCount = group.members?.length || 0;
+            return `
               <button class="group-card" type="button" data-action="select-customer-group" data-id="${attr(group.id)}">
-                <span>${renderStatusBadge(group.status)}</span>
-                <h3>${escapeHtml(group.group_name)}</h3>
-                <span class="muted">อัปเดท ${formatDate(group.data_updated_date)}</span>
+                <span class="group-card-top">
+                  ${renderStatusBadge(group.status)}
+                  <span class="muted">${memberCount} สมาชิก</span>
+                </span>
+                <span>
+                  <h3>${escapeHtml(group.group_name)}</h3>
+                  <span class="muted">อัปเดท ${formatDate(group.data_updated_date)}</span>
+                </span>
+                <span class="group-card-footer">
+                  <span>
+                    <span class="muted">วันชำระถัดไป</span>
+                    <strong>${due ? formatDate(due.date) : "-"}</strong>
+                  </span>
+                  ${due ? renderDueBadge(due) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
+                </span>
               </button>
-            `
-          )
+            `;
+          })
           .join("")}
       </div>
     </section>
@@ -781,42 +825,67 @@ function renderCustomerGroupCards(groups) {
 }
 
 function renderCustomerGroupDetail(group) {
+  const due = getGroupDueSummary(group);
+
   return `
-    <section class="section-block">
-      <div class="section-header">
+    <section class="customer-section">
+      <div class="group-detail-head">
         <div>
           <h2>${escapeHtml(group.group_name)}</h2>
           <p>อัปเดท ${formatDate(group.data_updated_date)}</p>
         </div>
         ${renderStatusBadge(group.status)}
       </div>
+      <div class="detail-summary-grid">
+        <div>
+          <span>สมาชิก</span>
+          <strong>${group.members?.length || 0}</strong>
+        </div>
+        <div>
+          <span>วันชำระถัดไป</span>
+          <strong>${due ? formatDate(due.date) : "-"}</strong>
+        </div>
+        <div>
+          <span>สถานะวันชำระ</span>
+          ${due ? renderDueBadge(due) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
+        </div>
+      </div>
       ${
         group.members?.length
-          ? `<div class="detail-list">
+          ? `<div class="member-card-grid">
               ${group.members
-                .map(
-                  (member) => `
-                    <div class="detail-row">
-                      <div>
-                        <span class="muted">ชื่อสมาชิก</span>
-                        <strong>${escapeHtml(member.member_name)}</strong>
+                .map((member) => {
+                  const memberDue = getDueInfo(member.payment_due_date);
+                  return `
+                    <article class="member-card">
+                      <div class="member-card-header">
+                        <div>
+                          <span class="muted">ชื่อสมาชิก</span>
+                          <h3>${escapeHtml(member.member_name)}</h3>
+                        </div>
+                        ${memberDue ? renderDueBadge(memberDue) : ""}
                       </div>
-                      <div>
-                        <span class="muted">วันเกิด</span>
-                        <strong>${formatBirthday(member)}</strong>
-                      </div>
-                      <div>
-                        <span class="muted">ประเภทอีเมล</span>
-                        <strong>${emailTypeLabel(member.email_type)}</strong>
-                      </div>
-                      <div>
-                        <span class="muted">วันที่ต้องชำระ</span>
+                      <div class="member-payment">
+                        <span>วันที่ต้องชำระ</span>
                         <strong>${formatDate(member.payment_due_date)}</strong>
-                        <span class="muted">อัปเดท ${formatDate(member.data_updated_date)}</span>
                       </div>
-                    </div>
-                  `
-                )
+                      <div class="member-meta-grid">
+                        <div>
+                          <span>วันเกิด</span>
+                          <strong>${formatBirthday(member)}</strong>
+                        </div>
+                        <div>
+                          <span>ประเภทอีเมล</span>
+                          <strong>${emailTypeLabel(member.email_type)}</strong>
+                        </div>
+                        <div>
+                          <span>อัปเดทล่าสุด</span>
+                          <strong>${formatDate(member.data_updated_date)}</strong>
+                        </div>
+                      </div>
+                    </article>
+                  `;
+                })
                 .join("")}
             </div>`
           : `<div class="empty-state"><p>ยังไม่มีสมาชิกในกลุ่มนี้</p></div>`
@@ -936,8 +1005,14 @@ async function handleClick(event) {
 
     if (action === "clear-customer") {
       state.portal = null;
+      state.portalAccessCode = null;
       state.selectedGroupId = null;
       renderCustomer();
+      return;
+    }
+
+    if (action === "refresh-customer") {
+      await refreshCustomerPortal();
       return;
     }
   } catch (error) {
@@ -970,7 +1045,28 @@ async function openCustomerPortal(form) {
   if (!data?.ok) throw new Error(data?.message || "ไม่พบข้อมูลของรหัสนี้");
 
   state.portal = data;
+  state.portalAccessCode = accessCode;
   state.selectedGroupId = null;
+  renderCustomer();
+}
+
+async function refreshCustomerPortal() {
+  if (!state.portalAccessCode) {
+    throw new Error("ไม่พบรหัสสำหรับรีเฟรชข้อมูล");
+  }
+
+  const { data, error } = await supabase.rpc("get_customer_portal", {
+    p_access_code: state.portalAccessCode
+  });
+
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.message || "ไม่พบข้อมูลของรหัสนี้");
+
+  state.portal = data;
+  if (state.selectedGroupId && !data.groups?.some((group) => group.id === state.selectedGroupId)) {
+    state.selectedGroupId = null;
+  }
+  showToast("รีเฟรชข้อมูลแล้ว");
   renderCustomer();
 }
 
@@ -1166,6 +1262,57 @@ function getDueSoonMembers() {
     .sort((a, b) => String(a.payment_due_date).localeCompare(String(b.payment_due_date)));
 }
 
+function getCustomerPortalSummary(groups) {
+  const dueItems = groups
+    .map((group) => getGroupDueSummary(group))
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    groupCount: groups.length,
+    activeCount: groups.filter((group) => group.status === "active").length,
+    nextDue: dueItems[0] || null
+  };
+}
+
+function getGroupDueSummary(group) {
+  const dueItems = (group.members || [])
+    .map((member) => getDueInfo(member.payment_due_date))
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return dueItems[0] || null;
+}
+
+function getDueInfo(value) {
+  if (!value) return null;
+  const date = String(value).slice(0, 10);
+  const due = parseDateInput(date);
+  const today = parseDateInput(todayInput());
+  if (!due || !today) return null;
+
+  const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+  let status = "normal";
+  let label = "รอชำระ";
+
+  if (days < 0) {
+    status = "overdue";
+    label = "เลยกำหนด";
+  } else if (days === 0) {
+    status = "today";
+    label = "ครบกำหนดวันนี้";
+  } else if (days <= 7) {
+    status = "soon";
+    label = "ใกล้ถึงวันชำระ";
+  }
+
+  return { date, days, status, label };
+}
+
+function renderDueBadge(dueInfo) {
+  return `<span class="badge due-${dueInfo.status}">${escapeHtml(dueInfo.label)}</span>`;
+}
+
 function renderStatusBadge(status) {
   if (status === "maintenance") return `<span class="badge warning">ปรับปรุง</span>`;
   return `<span class="badge success">ใช้งานได้</span>`;
@@ -1206,7 +1353,16 @@ function formatBirthday(item) {
 
 function formatDate(value) {
   if (!value) return "-";
-  return String(value).slice(0, 10);
+  const date = String(value).slice(0, 10);
+  const [year, month, day] = date.split("-");
+  if (!year || !month || !day) return date;
+  return `${day}/${month}/${year}`;
+}
+
+function parseDateInput(value) {
+  const [year, month, day] = String(value || "").slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
 }
 
 function todayInput() {
