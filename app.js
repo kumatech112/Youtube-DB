@@ -18,11 +18,12 @@ const state = {
   session: null,
   adminTab: "dashboard",
   adminLoaded: false,
+  homeLoaded: false,
   groups: [],
-  customers: [],
-  customerGroups: [],
   members: [],
   announcements: [],
+  servicePlans: [],
+  siteSettings: null,
   editing: null,
   portal: null,
   portalAccessCode: null,
@@ -68,7 +69,11 @@ async function render() {
     await renderAdmin();
     return;
   }
-  renderCustomer();
+  if (state.route === "customer") {
+    renderCustomer();
+    return;
+  }
+  await renderHome();
 }
 
 function renderConfigMissing() {
@@ -84,15 +89,16 @@ function renderConfigMissing() {
 
 function resolveRoute() {
   const hashRoute = window.location.hash.replace("#", "");
-  if (hashRoute === "admin" || hashRoute === "customer") return hashRoute;
+  if (hashRoute === "admin" || hashRoute === "customer" || hashRoute === "home") return hashRoute;
   const path = window.location.pathname.toLowerCase();
   if (path.startsWith("/admin")) return "admin";
-  return "customer";
+  if (path.startsWith("/customer")) return "customer";
+  return "home";
 }
 
 function navigate(route) {
   const useHash = window.location.protocol === "file:";
-  const url = useHash ? `#${route}` : `/${route}`;
+  const url = useHash ? `#${route}` : route === "home" ? "/" : `/${route}`;
   window.history.pushState({}, "", url);
   state.route = route;
   state.editing = null;
@@ -110,11 +116,19 @@ function renderTopNav() {
   if (!topnav) return;
 
   if (state.route === "admin") {
-    topnav.innerHTML = `<button type="button" data-nav="customer">หน้าลูกค้า</button>`;
+    topnav.innerHTML = `
+      <button type="button" data-nav="home">หน้าแรก</button>
+      <button type="button" data-nav="customer">หน้าลูกค้า</button>
+    `;
     return;
   }
 
-  topnav.innerHTML = "";
+  if (state.route === "customer") {
+    topnav.innerHTML = `<button type="button" data-nav="home">หน้าแรก</button>`;
+    return;
+  }
+
+  topnav.innerHTML = `<button type="button" data-nav="customer">เช็กข้อมูลสมาชิก</button>`;
 }
 
 async function renderAdmin() {
@@ -152,9 +166,9 @@ async function renderAdmin() {
   const content = {
     dashboard: renderDashboard(),
     groups: renderGroupsAdmin(),
-    customers: renderCustomersAdmin(),
     members: renderMembersAdmin(),
-    announcements: renderAnnouncementsAdmin()
+    announcements: renderAnnouncementsAdmin(),
+    promo: renderPromoAdmin()
   }[state.adminTab];
 
   app.innerHTML = renderAdminShell(content);
@@ -191,9 +205,9 @@ function renderAdminShell(content) {
   const tabs = [
     ["dashboard", "ภาพรวม"],
     ["groups", "กลุ่ม"],
-    ["customers", "User"],
     ["members", "สมาชิก"],
-    ["announcements", "ประกาศ/โปรโมชั่น"]
+    ["announcements", "ประกาศ/โปรโมชั่น"],
+    ["promo", "หน้าโปรโมต"]
   ];
 
   return `
@@ -224,7 +238,7 @@ function renderAdminShell(content) {
 
 function renderDashboard() {
   const activeGroups = state.groups.filter((group) => group.status === "active").length;
-  const activeCustomers = state.customers.filter((customer) => customer.status === "active").length;
+  const membersWithCode = state.members.filter((member) => member.access_code).length;
   const dueSoon = getDueSoonMembers();
 
   return `
@@ -232,7 +246,7 @@ function renderDashboard() {
       <div class="grid stats-grid">
         ${renderStat("กลุ่มทั้งหมด", state.groups.length)}
         ${renderStat("กลุ่มใช้งานได้", activeGroups)}
-        ${renderStat("User เปิดใช้งาน", activeCustomers)}
+        ${renderStat("มีรหัสเข้าดู", membersWithCode)}
         ${renderStat("สมาชิกทั้งหมด", state.members.length)}
       </div>
     </section>
@@ -249,6 +263,161 @@ function renderDashboard() {
           ? renderMembersTable(dueSoon, { compact: true })
           : `<div class="empty-state"><p>ยังไม่มีรายการที่ใกล้ถึงวันชำระ</p></div>`
       }
+    </section>
+  `;
+}
+
+async function renderHome() {
+  if (!state.homeLoaded) {
+    app.innerHTML = `
+      <section class="empty-state">
+        <h1>กำลังโหลดหน้าแรก</h1>
+      </section>
+    `;
+
+    try {
+      await loadHomeData();
+      state.homeLoaded = true;
+    } catch (error) {
+      app.innerHTML = `
+        <section class="empty-state">
+          <h1>ไม่สามารถโหลดหน้าแรกได้</h1>
+          <p>${escapeHtml(error.message)}</p>
+        </section>
+      `;
+      return;
+    }
+  }
+
+  const settings = getSiteSettings();
+
+  app.innerHTML = `
+    <section class="promo-hero">
+      <div class="promo-hero-copy">
+        <span class="eyebrow">Kuma Premium Shop</span>
+        <h1>${escapeHtml(settings.hero_title)}</h1>
+        <p>${escapeHtml(settings.hero_subtitle)}</p>
+        <div class="toolbar">
+          ${settings.line_url ? `<a class="primary-button link-button" href="${attr(settings.line_url)}" target="_blank" rel="noopener">${escapeHtml(settings.line_label || "ติดต่อ LINE")}</a>` : ""}
+          ${settings.facebook_url ? `<a class="ghost-button link-button" href="${attr(settings.facebook_url)}" target="_blank" rel="noopener">${escapeHtml(settings.facebook_label || "ติดต่อ Facebook")}</a>` : ""}
+          <button class="ghost-button" type="button" data-nav="customer">เช็กข้อมูลสมาชิก</button>
+        </div>
+      </div>
+      <div class="promo-hero-panel">
+        <span class="badge success">พร้อมให้บริการ</span>
+        <strong>${state.servicePlans.filter((plan) => plan.is_active).length || 0}</strong>
+        <span>แพ็กเกจที่เปิดแสดง</span>
+      </div>
+    </section>
+
+    ${renderHomeAnnouncements(state.announcements || [])}
+    ${renderServicePlans(state.servicePlans || [])}
+    ${renderContactSection(settings)}
+  `;
+}
+
+function renderHomeAnnouncements(items) {
+  const activeItems = items.filter((item) => item.is_active !== false);
+  if (!activeItems.length) return "";
+
+  return `
+    <section class="promo-section">
+      <div class="section-header">
+        <div>
+          <h2>โปรโมชันและประกาศ</h2>
+        </div>
+      </div>
+      <div class="announcement-strip">
+        ${activeItems
+          .map(
+            (item) => `
+              <article class="announcement-item">
+                ${item.image_url ? `<img src="${attr(item.image_url)}" alt="${attr(item.title)}" />` : ""}
+                <div class="announcement-body">
+                  <span class="badge">${escapeHtml(contentTypeLabel(item.content_type))}</span>
+                  <h3>${escapeHtml(item.title)}</h3>
+                  ${item.detail ? `<p class="muted">${escapeHtml(item.detail)}</p>` : ""}
+                </div>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderServicePlans(plans) {
+  const activePlans = plans.filter((plan) => plan.is_active !== false);
+  if (!activePlans.length) {
+    return `
+      <section class="promo-section">
+        <div class="empty-state">
+          <h1>ยังไม่มีรายการบริการ</h1>
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="promo-section">
+      <div class="section-header">
+        <div>
+          <h2>สินค้าและบริการ</h2>
+        </div>
+      </div>
+      <div class="plan-grid">
+        ${activePlans
+          .map((plan) => {
+            const availability = getPlanAvailability(plan);
+            return `
+              <article class="plan-card">
+                <div class="plan-media">
+                  ${
+                    plan.image_url
+                      ? `<img src="${attr(plan.image_url)}" alt="${attr(plan.title)}" />`
+                      : `<div class="plan-media-empty">${escapeHtml(plan.title.slice(0, 2).toUpperCase())}</div>`
+                  }
+                  <span class="plan-availability">${renderPlanAvailabilityBadge(availability)}</span>
+                </div>
+                <div class="plan-card-body">
+                  <div class="plan-title-row">
+                    ${
+                      plan.icon_url
+                        ? `<img class="plan-icon" src="${attr(plan.icon_url)}" alt="" />`
+                        : `<span class="plan-icon-text">${escapeHtml(plan.title.slice(0, 1).toUpperCase())}</span>`
+                    }
+                    <h3>${escapeHtml(plan.title)}</h3>
+                  </div>
+                  ${plan.description ? `<p class="muted">${escapeHtml(plan.description)}</p>` : ""}
+                  <div class="plan-status-line">
+                    <strong class="plan-price">${escapeHtml(plan.price_label || "-")}</strong>
+                    <span>${escapeHtml(availability.label)}</span>
+                  </div>
+                  ${renderFeatureList(plan.features)}
+                </div>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderContactSection(settings) {
+  if (!settings.line_url && !settings.facebook_url) return "";
+
+  return `
+    <section class="contact-band">
+      <div>
+        <span class="eyebrow">Contact</span>
+        <h2>สนใจบริการหรือต้องการสอบถาม</h2>
+      </div>
+      <div class="toolbar">
+        ${settings.line_url ? `<a class="primary-button link-button" href="${attr(settings.line_url)}" target="_blank" rel="noopener">${escapeHtml(settings.line_label || "ติดต่อ LINE")}</a>` : ""}
+        ${settings.facebook_url ? `<a class="ghost-button link-button" href="${attr(settings.facebook_url)}" target="_blank" rel="noopener">${escapeHtml(settings.facebook_label || "ติดต่อ Facebook")}</a>` : ""}
+      </div>
     </section>
   `;
 }
@@ -340,121 +509,6 @@ function renderGroupsTable() {
   `;
 }
 
-function renderCustomersAdmin() {
-  const record = getEditingRecord("customer", state.customers);
-  const selectedGroups = record ? getCustomerGroupIds(record.id) : [];
-
-  return `
-    <section class="section-block">
-      <div class="section-header">
-        <div>
-          <h2>${record ? "แก้ไข User" : "เพิ่ม User"}</h2>
-          <p>User คือคนที่ได้รับรหัสจากร้านเพื่อดูเฉพาะกลุ่มที่กำหนด</p>
-        </div>
-      </div>
-      <form class="form-grid" data-form="customer">
-        <label class="field">
-          <span>ชื่อ User / ลูกค้า</span>
-          <input name="display_name" value="${attr(record?.display_name)}" required />
-        </label>
-        <label class="field">
-          <span>รหัสเข้าใช้งาน</span>
-          <input name="access_code" value="${attr(record?.access_code)}" placeholder="YT-A7K29" required />
-        </label>
-        <label class="field">
-          <span>อีเมลลูกค้า</span>
-          <input name="email" type="email" value="${attr(record?.email)}" />
-        </label>
-        <label class="field">
-          <span>สถานะ</span>
-          <select name="status">
-            ${option("active", "เปิดใช้งาน", record?.status)}
-            ${option("inactive", "ปิดใช้งาน", record?.status)}
-          </select>
-        </label>
-        <label class="field full">
-          <span>หมายเหตุ</span>
-          <textarea name="note">${escapeHtml(record?.note || "")}</textarea>
-        </label>
-        <fieldset class="checkbox-grid full">
-          <legend>กลุ่มที่ User เห็นได้</legend>
-          <div class="checkbox-list">
-            ${
-              state.groups.length
-                ? state.groups
-                    .map(
-                      (group) => `
-                        <label class="check-row">
-                          <input
-                            name="group_ids"
-                            type="checkbox"
-                            value="${attr(group.id)}"
-                            ${selectedGroups.includes(group.id) ? "checked" : ""}
-                          />
-                          <span>${escapeHtml(group.group_name)}</span>
-                        </label>
-                      `
-                    )
-                    .join("")
-                : `<p class="muted">ต้องเพิ่มกลุ่มก่อนจึงจะผูก User ได้</p>`
-            }
-          </div>
-        </fieldset>
-        <div class="toolbar full">
-          <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่ม User"}</button>
-          ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
-        </div>
-      </form>
-      ${renderCustomersTable()}
-    </section>
-  `;
-}
-
-function renderCustomersTable() {
-  if (!state.customers.length) {
-    return `<div class="empty-state"><p>ยังไม่มี User</p></div>`;
-  }
-
-  return `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>รหัส</th>
-            <th>อีเมล</th>
-            <th>สถานะ</th>
-            <th>กลุ่มที่เห็นได้</th>
-            <th>จัดการ</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${state.customers
-            .map((customer) => {
-              const groupNames = getCustomerGroupIds(customer.id)
-                .map((groupId) => getGroupName(groupId))
-                .filter(Boolean);
-              return `
-                <tr>
-                  <td><strong>${escapeHtml(customer.display_name)}</strong></td>
-                  <td><code>${escapeHtml(customer.access_code)}</code></td>
-                  <td>${escapeHtml(customer.email || "-")}</td>
-                  <td>${renderCustomerStatusBadge(customer.status)}</td>
-                  <td>${groupNames.length ? groupNames.map((name) => `<span class="badge">${escapeHtml(name)}</span>`).join(" ") : "-"}</td>
-                  <td class="actions">
-                    <button class="ghost-button" type="button" data-action="edit-customer" data-id="${attr(customer.id)}">แก้ไข</button>
-                    <button class="danger-button" type="button" data-action="delete-customer" data-id="${attr(customer.id)}">ลบ</button>
-                  </td>
-                </tr>
-              `;
-            })
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
 function renderMembersAdmin() {
   const record = getEditingRecord("member", state.members);
 
@@ -477,6 +531,10 @@ function renderMembersAdmin() {
         <label class="field">
           <span>ชื่อสมาชิก</span>
           <input name="member_name" value="${attr(record?.member_name)}" required />
+        </label>
+        <label class="field">
+          <span>รหัสเข้าดู</span>
+          <input name="access_code" value="${attr(record?.access_code)}" placeholder="KUMA-A7K29" required />
         </label>
         <label class="field">
           <span>วันเกิด: วัน</span>
@@ -530,6 +588,7 @@ function renderMembersTable(members, options = {}) {
         <thead>
           <tr>
             <th>ชื่อสมาชิก</th>
+            ${options.compact ? "" : "<th>รหัสเข้าดู</th>"}
             <th>กลุ่ม</th>
             <th>วันเกิด</th>
             ${options.compact ? "" : "<th>อีเมลจริง</th>"}
@@ -545,6 +604,7 @@ function renderMembersTable(members, options = {}) {
               (member) => `
                 <tr>
                   <td><strong>${escapeHtml(member.member_name)}</strong></td>
+                  ${options.compact ? "" : `<td><code>${escapeHtml(member.access_code || "-")}</code></td>`}
                   <td>${escapeHtml(getGroupName(member.group_id))}</td>
                   <td>${formatBirthday(member)}</td>
                   ${options.compact ? "" : `<td>${escapeHtml(member.email || "-")}</td>`}
@@ -671,20 +731,180 @@ function renderAnnouncementsTable() {
   `;
 }
 
+function renderPromoAdmin() {
+  const settings = getSiteSettings();
+  const record = getEditingRecord("servicePlan", state.servicePlans);
+
+  return `
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>ตั้งค่าหน้าโปรโมต</h2>
+          <p>หน้าแรกของเว็บจะแสดงข้อมูลนี้ให้ทุกคนเห็น</p>
+        </div>
+      </div>
+      <form class="form-grid" data-form="site-settings">
+        <label class="field full">
+          <span>หัวข้อหน้าแรก</span>
+          <input name="hero_title" value="${attr(settings.hero_title)}" required />
+        </label>
+        <label class="field full">
+          <span>ข้อความรอง</span>
+          <textarea name="hero_subtitle">${escapeHtml(settings.hero_subtitle || "")}</textarea>
+        </label>
+        <label class="field">
+          <span>ลิงก์ LINE</span>
+          <input name="line_url" value="${attr(settings.line_url)}" placeholder="https://line.me/..." />
+        </label>
+        <label class="field">
+          <span>ข้อความปุ่ม LINE</span>
+          <input name="line_label" value="${attr(settings.line_label)}" placeholder="ติดต่อ LINE" />
+        </label>
+        <label class="field">
+          <span>ลิงก์ Facebook</span>
+          <input name="facebook_url" value="${attr(settings.facebook_url)}" placeholder="https://facebook.com/..." />
+        </label>
+        <label class="field">
+          <span>ข้อความปุ่ม Facebook</span>
+          <input name="facebook_label" value="${attr(settings.facebook_label)}" placeholder="ติดต่อ Facebook" />
+        </label>
+        <div class="toolbar full">
+          <button class="primary-button" type="submit">บันทึกหน้าโปรโมต</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>${record ? "แก้ไขสินค้า/บริการ" : "เพิ่มสินค้า/บริการ"}</h2>
+        </div>
+      </div>
+      <form class="form-grid" data-form="service-plan">
+        <label class="field">
+          <span>ชื่อสินค้า/บริการ</span>
+          <input name="title" value="${attr(record?.title)}" required />
+        </label>
+        <label class="field">
+          <span>ราคา/ค่าใช้จ่าย</span>
+          <input name="price_label" value="${attr(record?.price_label)}" placeholder="เช่น 99 บาท/เดือน" />
+        </label>
+        <label class="field">
+          <span>สถานะสินค้า</span>
+          <select name="slot_status">
+            ${option("available", "มีที่ว่าง", record?.slot_status)}
+            ${option("full", "เต็ม", record?.slot_status)}
+          </select>
+        </label>
+        <label class="field">
+          <span>จำนวนที่ว่าง</span>
+          <input name="available_slots" type="number" min="0" value="${attr(record?.available_slots)}" />
+        </label>
+        <label class="field">
+          <span>จำนวนทั้งหมด</span>
+          <input name="total_slots" type="number" min="0" value="${attr(record?.total_slots)}" />
+        </label>
+        <label class="field">
+          <span>อัปโหลดรูปสินค้า</span>
+          <input name="image_file" type="file" accept="image/*" />
+        </label>
+        <label class="field full">
+          <span>URL รูปสินค้า</span>
+          <input name="image_url" value="${attr(record?.image_url)}" />
+        </label>
+        <label class="field">
+          <span>อัปโหลดไอคอน</span>
+          <input name="icon_file" type="file" accept="image/*" />
+        </label>
+        <label class="field">
+          <span>URL ไอคอน</span>
+          <input name="icon_url" value="${attr(record?.icon_url)}" />
+        </label>
+        <label class="field full">
+          <span>รายละเอียด</span>
+          <textarea name="description">${escapeHtml(record?.description || "")}</textarea>
+        </label>
+        <label class="field full">
+          <span>รายการย่อย</span>
+          <textarea name="features" placeholder="ใส่บรรทัดละ 1 รายการ">${escapeHtml((record?.features || []).join("\n"))}</textarea>
+        </label>
+        <label class="field">
+          <span>ลำดับแสดงผล</span>
+          <input name="display_order" type="number" value="${attr(record?.display_order ?? 0)}" />
+        </label>
+        <label class="check-row">
+          <input name="is_active" type="checkbox" ${record?.is_active === false ? "" : "checked"} />
+          <span>เปิดแสดงผล</span>
+        </label>
+        <div class="toolbar full">
+          <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มสินค้า/บริการ"}</button>
+          ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
+        </div>
+      </form>
+      ${renderServicePlanTable()}
+    </section>
+  `;
+}
+
+function renderServicePlanTable() {
+  if (!state.servicePlans.length) {
+    return `<div class="empty-state"><p>ยังไม่มีบริการหรือราคา</p></div>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>สินค้า/บริการ</th>
+            <th>ราคา</th>
+            <th>ว่าง/เต็ม</th>
+            <th>สถานะ</th>
+            <th>ลำดับ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${state.servicePlans
+            .map(
+              (plan) => `
+                <tr>
+                  <td>
+                    <strong>${escapeHtml(plan.title)}</strong>
+                    <div class="muted">${escapeHtml(plan.description || "")}</div>
+                  </td>
+                  <td>${escapeHtml(plan.price_label || "-")}</td>
+                  <td>${renderPlanAvailabilityBadge(getPlanAvailability(plan))}</td>
+                  <td>${plan.is_active ? `<span class="badge success">เปิด</span>` : `<span class="badge danger">ปิด</span>`}</td>
+                  <td>${plan.display_order ?? 0}</td>
+                  <td class="actions">
+                    <button class="ghost-button" type="button" data-action="edit-service-plan" data-id="${attr(plan.id)}">แก้ไข</button>
+                    <button class="danger-button" type="button" data-action="delete-service-plan" data-id="${attr(plan.id)}">ลบ</button>
+                  </td>
+                </tr>
+              `
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function renderCustomer() {
   if (!state.portal) {
     app.innerHTML = `
       <section class="customer-login">
         <div class="customer-login-card">
           <div class="customer-login-copy">
-            <span class="eyebrow">Member Portal</span>
+            <span class="eyebrow">Kuma Member</span>
             <h1>ตรวจสอบข้อมูลกลุ่ม</h1>
             <p>ข้อมูลกลุ่มและวันชำระล่าสุด</p>
           </div>
           <form class="form-grid" data-form="customer-code">
             <label class="field full">
               <span>รหัสลูกค้า</span>
-              <input name="access_code" autocomplete="one-time-code" placeholder="YT-A7K29" required />
+              <input name="access_code" autocomplete="one-time-code" placeholder="KUMA-A7K29" required />
               <small class="field-hint">รหัสนี้ได้รับจากร้านเท่านั้น</small>
             </label>
             <div class="toolbar full">
@@ -895,27 +1115,40 @@ function renderCustomerGroupDetail(group) {
 }
 
 async function loadAdminData() {
-  const [groups, customers, customerGroups, members, announcements] = await Promise.all([
+  const [groups, members, announcements, servicePlans, siteSettings] = await Promise.all([
     supabase.from("groups").select("*").order("group_name", { ascending: true }),
-    supabase.from("customers").select("*").order("created_at", { ascending: false }),
-    supabase.from("customer_groups").select("*"),
     supabase.from("members").select("*").order("member_name", { ascending: true }),
     supabase
       .from("announcements")
       .select("*")
       .order("display_order", { ascending: true })
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("service_plans")
+      .select("*")
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: false }),
+    supabase.from("site_settings").select("*").eq("id", 1).maybeSingle()
   ]);
 
-  [groups, customers, customerGroups, members, announcements].forEach((result) => {
+  [groups, members, announcements, servicePlans, siteSettings].forEach((result) => {
     if (result.error) throw result.error;
   });
 
   state.groups = groups.data || [];
-  state.customers = customers.data || [];
-  state.customerGroups = customerGroups.data || [];
   state.members = members.data || [];
   state.announcements = announcements.data || [];
+  state.servicePlans = servicePlans.data || [];
+  state.siteSettings = siteSettings.data || getDefaultSiteSettings();
+}
+
+async function loadHomeData() {
+  const { data, error } = await supabase.rpc("get_public_home");
+  if (error) throw error;
+
+  state.siteSettings = data?.settings || getDefaultSiteSettings();
+  state.servicePlans = data?.service_plans || [];
+  state.announcements = data?.announcements || [];
 }
 
 async function handleSubmit(event) {
@@ -929,9 +1162,10 @@ async function handleSubmit(event) {
     if (formType === "admin-login") await loginAdmin(form);
     if (formType === "customer-code") await openCustomerPortal(form);
     if (formType === "group") await saveGroup(form);
-    if (formType === "customer") await saveCustomer(form);
     if (formType === "member") await saveMember(form);
     if (formType === "announcement") await saveAnnouncement(form);
+    if (formType === "site-settings") await saveSiteSettings(form);
+    if (formType === "service-plan") await saveServicePlan(form);
   } catch (error) {
     showToast(error.message, true);
   }
@@ -978,17 +1212,21 @@ async function handleClick(event) {
     }
 
     if (action === "edit-group") editRecord("groups", "group", id, "groups");
-    if (action === "edit-customer") editRecord("customers", "customer", id, "customers");
     if (action === "edit-member") editRecord("members", "member", id, "members");
     if (action === "edit-announcement") {
       editRecord("announcements", "announcement", id, "announcements");
     }
+    if (action === "edit-service-plan") {
+      editRecord("servicePlans", "servicePlan", id, "promo");
+    }
 
     if (action === "delete-group") await deleteRecord("groups", id, "ลบกลุ่มนี้หรือไม่");
-    if (action === "delete-customer") await deleteRecord("customers", id, "ลบ User นี้หรือไม่");
     if (action === "delete-member") await deleteRecord("members", id, "ลบสมาชิกนี้หรือไม่");
     if (action === "delete-announcement") {
       await deleteRecord("announcements", id, "ลบประกาศ/โปรโมชั่นนี้หรือไม่");
+    }
+    if (action === "delete-service-plan") {
+      await deleteRecord("service_plans", id, "ลบบริการ/ราคานี้หรือไม่");
     }
 
     if (action === "select-customer-group") {
@@ -1088,51 +1326,13 @@ async function saveGroup(form) {
   await reloadAfterSave("บันทึกกลุ่มแล้ว");
 }
 
-async function saveCustomer(form) {
-  const formData = new FormData(form);
-  const record = getEditingRecord("customer", state.customers);
-  const groupIds = [...form.querySelectorAll('input[name="group_ids"]:checked')].map(
-    (input) => input.value
-  );
-  const payload = {
-    display_name: clean(formData.get("display_name")),
-    access_code: clean(formData.get("access_code")),
-    email: clean(formData.get("email")) || null,
-    status: clean(formData.get("status")) || "active",
-    note: clean(formData.get("note")) || null
-  };
-
-  let customerId = record?.id;
-  if (record) {
-    await checked(supabase.from("customers").update(payload).eq("id", record.id));
-  } else {
-    const result = await checked(
-      supabase.from("customers").insert(payload).select("id").single()
-    );
-    customerId = result.data.id;
-  }
-
-  await checked(supabase.from("customer_groups").delete().eq("customer_id", customerId));
-  if (groupIds.length) {
-    await checked(
-      supabase.from("customer_groups").insert(
-        groupIds.map((groupId) => ({
-          customer_id: customerId,
-          group_id: groupId
-        }))
-      )
-    );
-  }
-
-  await reloadAfterSave("บันทึก User แล้ว");
-}
-
 async function saveMember(form) {
   const formData = new FormData(form);
   const record = getEditingRecord("member", state.members);
   const payload = {
     group_id: clean(formData.get("group_id")),
     member_name: clean(formData.get("member_name")),
+    access_code: clean(formData.get("access_code")),
     birthday_day: numberOrNull(formData.get("birthday_day")),
     birthday_month: numberOrNull(formData.get("birthday_month")),
     birthday_year: numberOrNull(formData.get("birthday_year")),
@@ -1141,6 +1341,10 @@ async function saveMember(form) {
     payment_due_date: clean(formData.get("payment_due_date")) || null,
     data_updated_date: clean(formData.get("data_updated_date")) || todayInput()
   };
+
+  if (!payload.access_code) {
+    throw new Error("กรุณาใส่รหัสเข้าดูของสมาชิก");
+  }
 
   if ((payload.birthday_day && !payload.birthday_month) || (!payload.birthday_day && payload.birthday_month)) {
     throw new Error("วันเกิดต้องใส่ทั้งวันและเดือน หรือเว้นว่างทั้งหมด");
@@ -1184,6 +1388,66 @@ async function saveAnnouncement(form) {
   await reloadAfterSave("บันทึกประกาศ/โปรโมชั่นแล้ว");
 }
 
+async function saveSiteSettings(form) {
+  const formData = new FormData(form);
+  const payload = {
+    id: 1,
+    hero_title: clean(formData.get("hero_title")),
+    hero_subtitle: clean(formData.get("hero_subtitle")) || null,
+    line_url: clean(formData.get("line_url")) || null,
+    line_label: clean(formData.get("line_label")) || "ติดต่อ LINE",
+    facebook_url: clean(formData.get("facebook_url")) || null,
+    facebook_label: clean(formData.get("facebook_label")) || "ติดต่อ Facebook"
+  };
+
+  await checked(supabase.from("site_settings").upsert(payload, { onConflict: "id" }));
+  state.homeLoaded = false;
+  await reloadAfterSave("บันทึกหน้าโปรโมตแล้ว");
+}
+
+async function saveServicePlan(form) {
+  const formData = new FormData(form);
+  const record = getEditingRecord("servicePlan", state.servicePlans);
+  const imageFile = form.querySelector('input[name="image_file"]').files[0];
+  const iconFile = form.querySelector('input[name="icon_file"]').files[0];
+  let imageUrl = clean(formData.get("image_url")) || null;
+  let iconUrl = clean(formData.get("icon_url")) || null;
+
+  if (imageFile) {
+    imageUrl = await uploadAsset(imageFile);
+  }
+
+  if (iconFile) {
+    iconUrl = await uploadAsset(iconFile);
+  }
+
+  const payload = {
+    title: clean(formData.get("title")),
+    description: clean(formData.get("description")) || null,
+    price_label: clean(formData.get("price_label")) || null,
+    image_url: imageUrl,
+    icon_url: iconUrl,
+    slot_status: clean(formData.get("slot_status")) || "available",
+    available_slots: numberOrNull(formData.get("available_slots")),
+    total_slots: numberOrNull(formData.get("total_slots")),
+    features: String(formData.get("features") || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+    display_order: numberOrNull(formData.get("display_order")) || 0,
+    is_active: formData.get("is_active") === "on"
+  };
+
+  if (record) {
+    await checked(supabase.from("service_plans").update(payload).eq("id", record.id));
+  } else {
+    await checked(supabase.from("service_plans").insert(payload));
+  }
+
+  state.homeLoaded = false;
+  await reloadAfterSave("บันทึกบริการ/ราคาแล้ว");
+}
+
 async function uploadAsset(file) {
   const safeName = file.name
     .normalize("NFKD")
@@ -1217,6 +1481,9 @@ function editRecord(collectionName, type, id, tab) {
 async function deleteRecord(tableName, id, message) {
   if (!window.confirm(message)) return;
   await checked(supabase.from(tableName).delete().eq("id", id));
+  if (tableName === "service_plans" || tableName === "announcements") {
+    state.homeLoaded = false;
+  }
   await reloadAfterSave("ลบข้อมูลแล้ว");
 }
 
@@ -1238,12 +1505,6 @@ function getEditingRecord(type, collection) {
   return collection.find((item) => item.id === state.editing.id) || null;
 }
 
-function getCustomerGroupIds(customerId) {
-  return state.customerGroups
-    .filter((item) => item.customer_id === customerId)
-    .map((item) => item.group_id);
-}
-
 function getGroupName(groupId) {
   return state.groups.find((group) => group.id === groupId)?.group_name || "-";
 }
@@ -1260,6 +1521,82 @@ function getDueSoonMembers() {
       return due >= today && due <= limit;
     })
     .sort((a, b) => String(a.payment_due_date).localeCompare(String(b.payment_due_date)));
+}
+
+function getDefaultSiteSettings() {
+  return {
+    id: 1,
+    hero_title: "Kuma Premium Shop",
+    hero_subtitle: "บริการพรีเมียม ราคาชัดเจน พร้อมช่องทางติดต่อร้าน",
+    line_url: "",
+    line_label: "ติดต่อ LINE",
+    facebook_url: "",
+    facebook_label: "ติดต่อ Facebook"
+  };
+}
+
+function getSiteSettings() {
+  return { ...getDefaultSiteSettings(), ...(state.siteSettings || {}) };
+}
+
+function renderFeatureList(features) {
+  const items = Array.isArray(features) ? features.filter(Boolean) : [];
+  if (!items.length) return "";
+
+  return `
+    <ul class="feature-list">
+      ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+    </ul>
+  `;
+}
+
+function getPlanAvailability(plan) {
+  const availableSlots =
+    plan.available_slots === null || plan.available_slots === undefined || plan.available_slots === ""
+      ? null
+      : Number(plan.available_slots);
+  const totalSlots =
+    plan.total_slots === null || plan.total_slots === undefined || plan.total_slots === ""
+      ? null
+      : Number(plan.total_slots);
+  const normalizedAvailableSlots = Number.isFinite(availableSlots) ? availableSlots : null;
+  const normalizedTotalSlots = Number.isFinite(totalSlots) ? totalSlots : null;
+  const isFull = plan.slot_status === "full" || normalizedAvailableSlots === 0;
+
+  if (isFull) {
+    return {
+      status: "full",
+      badge: "เต็ม",
+      label: normalizedTotalSlots ? `เต็ม ${normalizedTotalSlots}/${normalizedTotalSlots}` : "เต็ม"
+    };
+  }
+
+  if (normalizedAvailableSlots !== null && normalizedTotalSlots !== null && normalizedTotalSlots > 0) {
+    return {
+      status: "available",
+      badge: "มีที่ว่าง",
+      label: `ว่าง ${normalizedAvailableSlots}/${normalizedTotalSlots}`
+    };
+  }
+
+  if (normalizedAvailableSlots !== null) {
+    return {
+      status: "available",
+      badge: "มีที่ว่าง",
+      label: `ว่าง ${normalizedAvailableSlots}`
+    };
+  }
+
+  return {
+    status: "available",
+    badge: "มีที่ว่าง",
+    label: "มีที่ว่าง"
+  };
+}
+
+function renderPlanAvailabilityBadge(availability) {
+  const className = availability.status === "full" ? "danger" : "success";
+  return `<span class="badge ${className}">${escapeHtml(availability.badge)}</span>`;
 }
 
 function getCustomerPortalSummary(groups) {
@@ -1316,11 +1653,6 @@ function renderDueBadge(dueInfo) {
 function renderStatusBadge(status) {
   if (status === "maintenance") return `<span class="badge warning">ปรับปรุง</span>`;
   return `<span class="badge success">ใช้งานได้</span>`;
-}
-
-function renderCustomerStatusBadge(status) {
-  if (status === "inactive") return `<span class="badge danger">ปิดใช้งาน</span>`;
-  return `<span class="badge success">เปิดใช้งาน</span>`;
 }
 
 function renderEmailTypeBadge(emailType) {
