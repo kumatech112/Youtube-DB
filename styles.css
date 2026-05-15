@@ -603,8 +603,8 @@ code {
 
 .plan-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
 }
 
 .plan-card {
@@ -612,7 +612,7 @@ code {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-soft);
   overflow: hidden;
   transition:
     transform 160ms ease,
@@ -621,14 +621,14 @@ code {
 }
 
 .plan-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   border-color: #e6a8bb;
-  box-shadow: 0 18px 42px rgba(103, 20, 49, 0.16);
+  box-shadow: 0 14px 28px rgba(103, 20, 49, 0.12);
 }
 
 .plan-media {
   position: relative;
-  min-height: 200px;
+  min-height: 132px;
   background: var(--surface-2);
 }
 
@@ -636,7 +636,7 @@ code {
 .plan-media-empty {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9.2;
 }
 
 .plan-media img {
@@ -647,38 +647,48 @@ code {
   display: grid;
   place-items: center;
   color: var(--accent-strong);
-  font-size: 44px;
+  font-size: 32px;
   font-weight: 900;
   background: linear-gradient(145deg, #fde2eb, #f7b7cb);
 }
 
 .plan-availability {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 8px;
+  right: 8px;
 }
 
 .plan-card-body {
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: 9px;
+  padding: 12px;
 }
 
-.plan-title-row {
+.plan-seller-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .plan-card h3 {
   margin: 0;
-  font-size: 22px;
+  min-height: 44px;
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.28;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .plan-icon,
 .plan-icon-text {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
   border-radius: var(--radius);
 }
@@ -698,45 +708,87 @@ code {
 
 .plan-price {
   display: block;
-  font-size: clamp(26px, 4vw, 36px);
+  margin-top: 2px;
+  font-size: 20px;
   line-height: 1.1;
   color: var(--accent-strong);
 }
 
-.plan-status-line {
+.plan-description {
+  min-height: 38px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.plan-card-footer {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  padding-top: 12px;
+  gap: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
 }
 
-.plan-status-line span {
+.plan-card-footer span,
+.plan-slots {
   color: var(--muted);
+  font-size: 13px;
   font-weight: 800;
-  text-align: right;
 }
 
 .feature-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .feature-list li {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: var(--radius);
   background: var(--surface-2);
   color: var(--text);
+  font-size: 14px;
+}
+
+.feature-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 26px;
+}
+
+.feature-tags span {
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plan-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
+}
+
+.plan-actions .primary-button,
+.plan-actions .ghost-button {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 14px;
 }
 
 .plan-actions .link-button:only-child {
@@ -1166,7 +1218,6 @@ code {
 
   .group-card-top,
   .group-card-footer,
-  .plan-status-line,
   .plan-actions,
   .member-card-header {
     align-items: flex-start;
@@ -1175,10 +1226,6 @@ code {
 
   .plan-actions {
     grid-template-columns: 1fr;
-  }
-
-  .plan-status-line span {
-    text-align: left;
   }
 
   .app-shell {

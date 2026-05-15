@@ -398,20 +398,24 @@ function renderServicePlans(plans) {
                   <span class="plan-availability">${renderPlanAvailabilityBadge(availability)}</span>
                 </div>
                 <div class="plan-card-body">
-                  <div class="plan-title-row">
+                  <div class="plan-seller-row">
                     ${
                       plan.icon_url
                         ? `<img class="plan-icon" src="${attr(plan.icon_url)}" alt="" />`
                         : `<span class="plan-icon-text">${escapeHtml(plan.title.slice(0, 1).toUpperCase())}</span>`
                     }
-                    <h3>${escapeHtml(plan.title)}</h3>
+                    <span>Kuma Premium Shop</span>
                   </div>
-                  ${plan.description ? `<p class="muted">${escapeHtml(plan.description)}</p>` : ""}
-                  <div class="plan-status-line">
-                    <strong class="plan-price">${escapeHtml(plan.price_label || "-")}</strong>
-                    <span>${escapeHtml(availability.label)}</span>
+                  <h3>${escapeHtml(plan.title)}</h3>
+                  ${plan.description ? `<p class="plan-description">${escapeHtml(plan.description)}</p>` : ""}
+                  ${renderFeatureTags(plan.features)}
+                  <div class="plan-card-footer">
+                    <div>
+                      <span>เริ่มต้น</span>
+                      <strong class="plan-price">${escapeHtml(plan.price_label || "-")}</strong>
+                    </div>
+                    <span class="plan-slots">${escapeHtml(availability.label)}</span>
                   </div>
-                  ${renderFeatureList(plan.features)}
                   ${renderPlanActions(settings, availability)}
                 </div>
               </article>
@@ -1585,6 +1589,17 @@ function renderFeatureList(features) {
     <ul class="feature-list">
       ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
     </ul>
+  `;
+}
+
+function renderFeatureTags(features) {
+  const items = Array.isArray(features) ? features.filter(Boolean).slice(0, 3) : [];
+  if (!items.length) return "";
+
+  return `
+    <div class="feature-tags">
+      ${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+    </div>
   `;
 }
 
