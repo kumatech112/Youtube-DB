@@ -45,6 +45,36 @@ body::before {
   z-index: 60;
 }
 
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes softPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.025);
+  }
+}
+
+@keyframes sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
 button,
 input,
 select,
@@ -503,6 +533,7 @@ code {
   gap: 18px;
   align-items: stretch;
   margin-bottom: 22px;
+  animation: fadeUp 420ms ease both;
 }
 
 .promo-hero-copy,
@@ -599,39 +630,58 @@ code {
 
 .promo-section {
   margin-top: 30px;
+  animation: fadeUp 420ms ease both;
 }
 
 .plan-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(250px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(5, minmax(210px, 1fr));
+  gap: 14px;
 }
 
 .plan-card {
   display: flex;
   flex-direction: column;
-  min-height: 360px;
+  min-height: 318px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-soft);
   overflow: hidden;
   transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    border-color 160ms ease;
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+  animation: fadeUp 360ms ease both;
+}
+
+.plan-card:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.plan-card:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.plan-card:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.plan-card:nth-child(5) {
+  animation-delay: 160ms;
 }
 
 .plan-card:hover {
-  transform: translateY(-1px);
+  transform: translateY(-4px);
   border-color: #d9a4b7;
-  box-shadow: 0 10px 22px rgba(103, 20, 49, 0.1);
+  box-shadow: 0 16px 34px rgba(103, 20, 49, 0.14);
 }
 
 .plan-media {
   position: relative;
-  min-height: 250px;
+  min-height: 210px;
   background: var(--surface-2);
+  overflow: hidden;
 }
 
 .plan-media img,
@@ -643,6 +693,11 @@ code {
 
 .plan-media img {
   object-fit: cover;
+  transition: transform 260ms ease;
+}
+
+.plan-card:hover .plan-media img {
+  transform: scale(1.035);
 }
 
 .plan-media-empty {
@@ -652,20 +707,31 @@ code {
   font-size: 38px;
   font-weight: 900;
   background: linear-gradient(145deg, #fde2eb, #f7b7cb);
+  position: relative;
+  overflow: hidden;
+}
+
+.plan-media-empty::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  animation: sheen 2200ms ease-in-out infinite;
 }
 
 .plan-availability {
   position: absolute;
   top: 8px;
   right: 8px;
+  animation: softPulse 2400ms ease-in-out infinite;
 }
 
 .plan-card-body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 9px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
 }
 
 .plan-seller-row {
@@ -679,9 +745,9 @@ code {
 
 .plan-card h3 {
   margin: 0;
-  min-height: 48px;
+  min-height: 42px;
   color: var(--text);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.28;
   overflow: hidden;
@@ -715,7 +781,7 @@ code {
   display: block;
   margin-top: 2px;
   color: #1769ff;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
   line-height: 1.1;
 }
@@ -755,7 +821,7 @@ code {
   align-items: center;
   gap: 5px;
   color: var(--accent-strong);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 900;
 }
 
@@ -788,7 +854,7 @@ code {
   border-radius: 999px;
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -966,6 +1032,17 @@ code {
   overflow: hidden;
   background: var(--surface);
   box-shadow: var(--shadow-soft);
+  animation: fadeUp 360ms ease both;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.announcement-item:hover {
+  transform: translateY(-3px);
+  border-color: #d9a4b7;
+  box-shadow: 0 14px 28px rgba(103, 20, 49, 0.12);
 }
 
 .announcement-item img {
@@ -1002,6 +1079,10 @@ code {
   text-align: left;
   box-shadow: var(--shadow);
   align-content: space-between;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
 }
 
 .group-card h3 {
@@ -1112,6 +1193,7 @@ code {
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-soft);
+  animation: fadeUp 320ms ease both;
 }
 
 .member-card-header {
@@ -1383,5 +1465,16 @@ code {
 @media (max-width: 380px) {
   .plan-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
   }
 }
