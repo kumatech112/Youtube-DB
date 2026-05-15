@@ -1007,7 +1007,6 @@ function renderCustomer() {
     </div>
 
     ${selectedGroup ? "" : renderCustomerSummary(summary)}
-    ${renderCustomerAnnouncements(state.portal.announcements || [])}
 
     ${
       selectedGroup

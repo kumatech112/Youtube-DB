@@ -1020,8 +1020,8 @@ code {
 
 .announcement-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 220px));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 280px));
+  gap: 12px;
   justify-content: start;
   align-items: start;
   margin-bottom: 14px;
@@ -1029,7 +1029,7 @@ code {
 
 .announcement-item {
   width: 100%;
-  max-width: 220px;
+  max-width: 280px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
@@ -1049,7 +1049,7 @@ code {
 }
 
 .announcement-image-button {
-  --announcement-image-height: 124px;
+  --announcement-image-height: 180px;
   display: grid;
   place-items: center;
   width: 100%;
@@ -1487,7 +1487,7 @@ code {
   }
 
   .announcement-image-button {
-    --announcement-image-height: 108px;
+    --announcement-image-height: 156px;
   }
 
   .announcement-body {
@@ -1608,7 +1608,7 @@ code {
   }
 
   .announcement-image-button {
-    --announcement-image-height: 140px;
+    --announcement-image-height: 188px;
   }
 }
 
