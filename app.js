@@ -166,7 +166,6 @@ function renderLogin() {
         <div class="section-header">
           <div>
             <h1>เข้าสู่ระบบผู้จัดการ</h1>
-            <p>ใช้บัญชีแอดมินที่สร้างไว้ใน Supabase Auth</p>
           </div>
         </div>
         <form class="form-grid" data-form="admin-login">
