@@ -966,9 +966,9 @@ code {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-  padding: 18px;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -977,7 +977,7 @@ code {
 
 .customer-page-header h1 {
   margin: 4px 0;
-  font-size: clamp(24px, 4vw, 36px);
+  font-size: clamp(22px, 3vw, 30px);
   line-height: 1.15;
 }
 
@@ -989,14 +989,14 @@ code {
 .customer-summary {
   display: grid;
   grid-template-columns: 1fr 1fr 1.5fr;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .summary-card {
   display: grid;
-  gap: 6px;
-  padding: 14px;
+  gap: 5px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -1010,26 +1010,26 @@ code {
 }
 
 .summary-card strong {
-  font-size: 26px;
+  font-size: 22px;
   line-height: 1.1;
 }
 
 .customer-section {
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .announcement-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 260px));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 220px));
+  gap: 10px;
   justify-content: start;
   align-items: start;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .announcement-item {
   width: 100%;
-  max-width: 260px;
+  max-width: 220px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
@@ -1049,9 +1049,13 @@ code {
 }
 
 .announcement-image-button {
-  display: block;
+  --announcement-image-max: 118px;
+  display: grid;
+  place-items: center;
   width: 100%;
-  height: 148px;
+  height: auto;
+  min-height: 72px;
+  max-height: var(--announcement-image-max);
   padding: 0;
   border: 0;
   background: var(--surface-2);
@@ -1086,19 +1090,26 @@ code {
 
 .announcement-image-button img {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: var(--announcement-image-max);
   object-fit: contain;
   background: var(--surface-2);
 }
 
 .announcement-body {
-  padding: 10px 12px 12px;
+  padding: 8px 10px 10px;
+}
+
+.announcement-body .badge {
+  padding: 3px 7px;
+  font-size: 12px;
 }
 
 .announcement-body h3 {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .announcement-body .muted {
@@ -1171,15 +1182,15 @@ code {
 
 .group-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
 }
 
 .group-card {
   display: grid;
-  gap: 12px;
-  min-height: 178px;
-  padding: 16px;
+  gap: 9px;
+  min-height: 146px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -1194,7 +1205,7 @@ code {
 
 .group-card h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 17px;
 }
 
 .group-card:hover {
@@ -1212,26 +1223,26 @@ code {
 
 .group-card-footer {
   align-items: flex-end;
-  padding-top: 12px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
 }
 
 .group-card-footer strong {
   display: block;
   margin-top: 2px;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .group-detail-head {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .group-detail-head h2 {
   margin: 0;
-  font-size: clamp(24px, 4vw, 34px);
+  font-size: clamp(22px, 3vw, 30px);
 }
 
 .group-detail-head p {
@@ -1242,14 +1253,14 @@ code {
 .detail-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .detail-summary-grid > div {
   display: grid;
-  gap: 6px;
-  padding: 14px;
+  gap: 5px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -1263,7 +1274,7 @@ code {
 }
 
 .detail-summary-grid strong {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .detail-list {
@@ -1288,14 +1299,14 @@ code {
 
 .member-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
 }
 
 .member-card {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 9px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -1312,11 +1323,11 @@ code {
 
 .member-card h3 {
   margin: 2px 0 0;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .member-payment {
-  padding: 12px;
+  padding: 10px;
   border-radius: var(--radius);
   background: var(--surface-2);
 }
@@ -1332,14 +1343,14 @@ code {
 .member-payment strong {
   display: block;
   margin-top: 2px;
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1.1;
 }
 
 .member-meta-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .member-meta-grid strong {
@@ -1479,7 +1490,8 @@ code {
   }
 
   .announcement-image-button {
-    height: 128px;
+    --announcement-image-max: 104px;
+    min-height: 64px;
   }
 
   .announcement-body {
@@ -1600,7 +1612,7 @@ code {
   }
 
   .announcement-image-button {
-    height: 160px;
+    --announcement-image-max: 128px;
   }
 }
 
