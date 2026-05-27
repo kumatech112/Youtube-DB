@@ -242,9 +242,6 @@ function renderAdminShell(content) {
 
 function renderDashboard() {
   const activeGroups = state.groups.filter((group) => group.status === "active").length;
-  const membersWithCode = state.members.filter((member) => member.access_code).length;
-  const groupsWithOwnerPassword = state.groups.filter((group) => group.owner_account_password).length;
-  const groupsWithOwnerEmail = state.groups.filter((group) => group.owner_account_email).length;
   const dueSoon = getDueSoonMembers();
 
   return `
@@ -252,9 +249,6 @@ function renderDashboard() {
       <div class="grid stats-grid">
         ${renderStat("กลุ่มทั้งหมด", state.groups.length)}
         ${renderStat("กลุ่มใช้งานได้", activeGroups)}
-        ${renderStat("มีอีเมลหัวบ้าน", groupsWithOwnerEmail)}
-        ${renderStat("มี Password หัวบ้าน", groupsWithOwnerPassword)}
-        ${renderStat("มีรหัสเข้าดู", membersWithCode)}
         ${renderStat("สมาชิกทั้งหมด", state.members.length)}
       </div>
     </section>
@@ -527,7 +521,7 @@ function renderGroupsAdmin() {
           <p>กำหนดชื่อกลุ่มและสถานะที่ฝั่งลูกค้าจะเห็น</p>
         </div>
       </div>
-      <form class="form-grid" data-form="group">
+      <form class="form-grid group-form" data-form="group">
         <label class="field">
           <span>ชื่อกลุ่ม</span>
           <input name="group_name" value="${attr(record?.group_name)}" required />
@@ -547,14 +541,6 @@ function renderGroupsAdmin() {
           />
           <small class="field-hint">${record ? "ปล่อยว่างเพื่อใช้ Password เดิม" : "เก็บเฉพาะหลังบ้าน ไม่แสดงให้ลูกค้าเห็น"}</small>
         </label>
-        ${
-          record
-            ? `<label class="check-row">
-                <input name="clear_owner_account_password" type="checkbox" />
-                <span>ลบ Password เดิม</span>
-              </label>`
-            : ""
-        }
         <label class="field">
           <span>สถานะ</span>
           <select name="status">
@@ -562,6 +548,14 @@ function renderGroupsAdmin() {
             ${option("maintenance", "ปรับปรุง", record?.status)}
           </select>
         </label>
+        ${
+          record
+            ? `<label class="check-row full">
+                <input name="clear_owner_account_password" type="checkbox" />
+                <span>ลบ Password เดิม</span>
+              </label>`
+            : ""
+        }
         <div class="toolbar full">
           <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มกลุ่ม"}</button>
           ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}

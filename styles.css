@@ -465,6 +465,29 @@ textarea:focus-visible {
   gap: 6px;
 }
 
+.group-form {
+  align-items: start;
+}
+
+.group-form .field {
+  min-height: 86px;
+  align-content: start;
+}
+
+.group-form .field input,
+.group-form .field select {
+  height: 44px;
+}
+
+.group-form .field-hint {
+  min-height: 18px;
+}
+
+.group-form .check-row.full {
+  justify-content: flex-start;
+  min-height: 44px;
+}
+
 .field span,
 .checkbox-grid legend {
   color: var(--muted);
