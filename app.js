@@ -242,7 +242,8 @@ function renderAdminShell(content) {
 
 function renderDashboard() {
   const activeGroups = state.groups.filter((group) => group.status === "active").length;
-  const dueSoon = getDueSoonMembers();
+  const outstandingMembers = getOutstandingMembers();
+  const paymentWatchMembers = getPaymentWatchMembers();
 
   return `
     <section class="section-block">
@@ -250,20 +251,21 @@ function renderDashboard() {
         ${renderStat("กลุ่มทั้งหมด", state.groups.length)}
         ${renderStat("กลุ่มใช้งานได้", activeGroups)}
         ${renderStat("สมาชิกทั้งหมด", state.members.length)}
+        ${renderStat("ค้างชำระทั้งหมด", outstandingMembers.length)}
       </div>
     </section>
 
     <section class="section-block">
       <div class="section-header">
         <div>
-          <h2>ใกล้ถึงวันที่ต้องชำระ</h2>
-          <p>แสดงรายการภายใน 7 วันจากวันนี้</p>
+          <h2>ค้างชำระและใกล้ถึงวันชำระ</h2>
+          <p>แสดงรายการที่ครบกำหนดแล้ว หรือครบกำหนดภายใน 7 วัน กดชำระแล้วเพื่อเลื่อนวันชำระไปอีก 1 เดือน</p>
         </div>
       </div>
       ${
-        dueSoon.length
-          ? renderMembersTable(dueSoon, { compact: true })
-          : `<div class="empty-state"><p>ยังไม่มีรายการที่ใกล้ถึงวันชำระ</p></div>`
+        paymentWatchMembers.length
+          ? renderMembersTable(paymentWatchMembers, { compact: true, paymentAction: true, showDueStatus: true })
+          : `<div class="empty-state"><p>ยังไม่มีรายการค้างชำระหรือใกล้ถึงวันชำระ</p></div>`
       }
     </section>
   `;
@@ -698,15 +700,17 @@ function renderMembersTable(members, options = {}) {
             <th>วันเกิด</th>
             ${options.compact ? "" : "<th>อีเมลสำรอง</th>"}
             <th>ประเภทอีเมล</th>
-            <th>วันที่ต้องชำระ</th>
+            <th>${options.showDueStatus ? "วันที่ต้องชำระ/สถานะ" : "วันที่ต้องชำระ"}</th>
             <th>วันที่อัปเดท</th>
+            ${options.paymentAction ? "<th>ชำระเงิน</th>" : ""}
             ${options.compact ? "" : "<th>จัดการ</th>"}
           </tr>
         </thead>
         <tbody>
           ${members
-            .map(
-              (member) => `
+            .map((member) => {
+              const dueInfo = options.showDueStatus ? getDueInfo(member.payment_due_date) : null;
+              return `
                 <tr>
                   <td><strong>${escapeHtml(member.member_name)}</strong></td>
                   ${options.compact ? "" : `<td><code>${escapeHtml(member.access_code || "-")}</code></td>`}
@@ -714,8 +718,20 @@ function renderMembersTable(members, options = {}) {
                   <td>${formatBirthday(member)}</td>
                   ${options.compact ? "" : `<td>${escapeHtml(member.backup_email || member.email || "-")}</td>`}
                   <td>${renderEmailTypeBadge(member.email_type)}</td>
-                  <td>${formatDate(member.payment_due_date)}</td>
+                  <td>
+                    <div class="due-table-cell">
+                      <strong>${formatDate(member.payment_due_date)}</strong>
+                      ${dueInfo ? renderDueBadge(dueInfo) : ""}
+                    </div>
+                  </td>
                   <td>${formatDate(member.data_updated_date)}</td>
+                  ${
+                    options.paymentAction
+                      ? `<td>
+                          <button class="primary-button payment-action-button" type="button" data-action="mark-member-paid" data-id="${attr(member.id)}">ชำระแล้ว</button>
+                        </td>`
+                      : ""
+                  }
                   ${
                     options.compact
                       ? ""
@@ -725,8 +741,8 @@ function renderMembersTable(members, options = {}) {
                         </td>`
                   }
                 </tr>
-              `
-            )
+              `;
+            })
             .join("")}
         </tbody>
       </table>
@@ -1345,6 +1361,11 @@ async function handleClick(event) {
       await deleteRecord("service_plans", id, "ลบบริการ/ราคานี้หรือไม่");
     }
 
+    if (action === "mark-member-paid") {
+      await markMemberPaid(id);
+      return;
+    }
+
     if (action === "select-customer-group") {
       state.selectedGroupId = id;
       renderCustomer();
@@ -1620,6 +1641,30 @@ async function deleteRecord(tableName, id, message) {
   await reloadAfterSave("ลบข้อมูลแล้ว");
 }
 
+async function markMemberPaid(memberId) {
+  const member = state.members.find((item) => String(item.id) === String(memberId));
+  if (!member) throw new Error("ไม่พบสมาชิก");
+  if (!member.payment_due_date) throw new Error("สมาชิกนี้ยังไม่มีวันที่ต้องชำระ");
+
+  const nextDueDate = addMonthsToDateInput(member.payment_due_date, 1);
+  const confirmed = window.confirm(
+    `ยืนยันว่ารับชำระของ ${member.member_name} แล้ว และเลื่อนวันชำระเป็น ${formatDate(nextDueDate)} หรือไม่`
+  );
+  if (!confirmed) return;
+
+  await checked(
+    supabase
+      .from("members")
+      .update({
+        payment_due_date: nextDueDate,
+        data_updated_date: todayInput()
+      })
+      .eq("id", member.id)
+  );
+
+  await reloadAfterSave(`อัปเดทวันชำระถัดไปเป็น ${formatDate(nextDueDate)}`);
+}
+
 async function reloadAfterSave(message) {
   state.editing = null;
   state.adminLoaded = false;
@@ -1643,17 +1688,35 @@ function getGroupName(groupId) {
 }
 
 function getDueSoonMembers() {
-  const today = new Date(`${todayInput()}T00:00:00`);
+  const today = parseDateInput(todayInput());
   const limit = new Date(today);
   limit.setDate(limit.getDate() + 7);
 
   return state.members
     .filter((member) => {
-      if (!member.payment_due_date) return false;
-      const due = new Date(`${member.payment_due_date}T00:00:00`);
+      const due = parseDateInput(member.payment_due_date);
+      if (!due) return false;
       return due >= today && due <= limit;
     })
     .sort((a, b) => String(a.payment_due_date).localeCompare(String(b.payment_due_date)));
+}
+
+function getOutstandingMembers() {
+  const today = parseDateInput(todayInput());
+  return state.members
+    .filter((member) => {
+      const due = parseDateInput(member.payment_due_date);
+      return due && due <= today;
+    })
+    .sort((a, b) => String(a.payment_due_date).localeCompare(String(b.payment_due_date)));
+}
+
+function getPaymentWatchMembers() {
+  const byId = new Map();
+  [...getOutstandingMembers(), ...getDueSoonMembers()].forEach((member) => {
+    byId.set(member.id, member);
+  });
+  return [...byId.values()].sort((a, b) => String(a.payment_due_date).localeCompare(String(b.payment_due_date)));
 }
 
 function getDefaultSiteSettings() {
@@ -1897,6 +1960,18 @@ function parseDateInput(value) {
   const [year, month, day] = String(value || "").slice(0, 10).split("-").map(Number);
   if (!year || !month || !day) return null;
   return new Date(year, month - 1, day);
+}
+
+function addMonthsToDateInput(value, months) {
+  const date = parseDateInput(value);
+  if (!date) throw new Error("วันที่ต้องชำระไม่ถูกต้อง");
+
+  const originalDay = date.getDate();
+  const target = new Date(date.getFullYear(), date.getMonth() + months, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(originalDay, lastDay));
+
+  return toIsoDate(target.getFullYear(), target.getMonth() + 1, target.getDate());
 }
 
 function todayInput() {

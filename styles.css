@@ -609,6 +609,18 @@ tr:last-child td {
   gap: 6px;
 }
 
+.due-table-cell {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.payment-action-button {
+  min-height: 34px;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+
 code {
   padding: 2px 6px;
   border-radius: 6px;
