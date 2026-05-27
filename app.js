@@ -243,7 +243,7 @@ function renderAdminShell(content) {
 function renderDashboard() {
   const activeGroups = state.groups.filter((group) => group.status === "active").length;
   const membersWithCode = state.members.filter((member) => member.access_code).length;
-  const groupsWithOwnerCode = state.groups.filter((group) => group.owner_account_code).length;
+  const groupsWithOwnerPassword = state.groups.filter((group) => group.owner_account_password).length;
   const dueSoon = getDueSoonMembers();
 
   return `
@@ -251,7 +251,7 @@ function renderDashboard() {
       <div class="grid stats-grid">
         ${renderStat("กลุ่มทั้งหมด", state.groups.length)}
         ${renderStat("กลุ่มใช้งานได้", activeGroups)}
-        ${renderStat("มีรหัสหัวบ้าน", groupsWithOwnerCode)}
+        ${renderStat("มี Password หัวบ้าน", groupsWithOwnerPassword)}
         ${renderStat("มีรหัสเข้าดู", membersWithCode)}
         ${renderStat("สมาชิกทั้งหมด", state.members.length)}
       </div>
@@ -531,10 +531,23 @@ function renderGroupsAdmin() {
           <input name="group_name" value="${attr(record?.group_name)}" required />
         </label>
         <label class="field">
-          <span>รหัสบัญชีหัวบ้าน</span>
-          <input name="owner_account_code" value="${attr(record?.owner_account_code)}" placeholder="เช่น HB-001 หรือรหัสบัญชีหลัก" />
-          <small class="field-hint">เก็บเป็น Log หลังบ้าน ไม่แสดงให้ลูกค้าเห็น</small>
+          <span>Password บัญชีหัวบ้าน</span>
+          <input
+            name="owner_account_password"
+            type="password"
+            autocomplete="new-password"
+            placeholder="${record?.owner_account_password ? "ตั้งค่าไว้แล้ว - กรอกใหม่เมื่อต้องการเปลี่ยน" : "ใส่ Password บัญชีหัวบ้าน"}"
+          />
+          <small class="field-hint">${record ? "ปล่อยว่างเพื่อใช้ Password เดิม" : "เก็บเฉพาะหลังบ้าน ไม่แสดงให้ลูกค้าเห็น"}</small>
         </label>
+        ${
+          record
+            ? `<label class="check-row">
+                <input name="clear_owner_account_password" type="checkbox" />
+                <span>ลบ Password เดิม</span>
+              </label>`
+            : ""
+        }
         <label class="field">
           <span>สถานะ</span>
           <select name="status">
@@ -563,7 +576,7 @@ function renderGroupsTable() {
         <thead>
           <tr>
             <th>ชื่อกลุ่ม</th>
-            <th>รหัสหัวบ้าน</th>
+            <th>Password หัวบ้าน</th>
             <th>สถานะ</th>
             <th>สมาชิก</th>
             <th>วันที่อัปเดท</th>
@@ -577,7 +590,7 @@ function renderGroupsTable() {
               return `
                 <tr>
                   <td><strong>${escapeHtml(group.group_name)}</strong></td>
-                  <td>${group.owner_account_code ? `<code class="code-pill">${escapeHtml(group.owner_account_code)}</code>` : `<span class="muted">-</span>`}</td>
+                  <td>${group.owner_account_password ? `<span class="badge success">บันทึกแล้ว</span>` : `<span class="muted">-</span>`}</td>
                   <td>${renderStatusBadge(group.status)}</td>
                   <td>${memberCount}</td>
                   <td>${formatDate(group.data_updated_date)}</td>
@@ -1416,12 +1429,21 @@ async function refreshCustomerPortal() {
 async function saveGroup(form) {
   const formData = new FormData(form);
   const record = getEditingRecord("group", state.groups);
+  const ownerPassword = clean(formData.get("owner_account_password"));
+  const clearOwnerPassword = formData.get("clear_owner_account_password") === "on";
   const payload = {
     group_name: clean(formData.get("group_name")),
-    owner_account_code: clean(formData.get("owner_account_code")) || null,
     status: clean(formData.get("status")) || "active",
     data_updated_date: todayInput()
   };
+
+  if (clearOwnerPassword) {
+    payload.owner_account_password = null;
+  } else if (ownerPassword) {
+    payload.owner_account_password = ownerPassword;
+  } else if (!record) {
+    payload.owner_account_password = null;
+  }
 
   if (record) {
     await checked(supabase.from("groups").update(payload).eq("id", record.id));

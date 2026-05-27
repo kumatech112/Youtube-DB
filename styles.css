@@ -497,16 +497,6 @@ code {
   background: var(--surface-2);
 }
 
-.code-pill {
-  display: inline-flex;
-  max-width: 180px;
-  overflow: hidden;
-  color: var(--accent-strong);
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .thumb {
   width: 96px;
   height: 54px;
