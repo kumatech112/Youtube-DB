@@ -14,6 +14,7 @@ create table if not exists public.admin_profiles (
 create table if not exists public.groups (
   id uuid primary key default gen_random_uuid(),
   group_name text not null,
+  owner_account_code text,
   status text not null default 'active' check (status in ('active', 'maintenance')),
   data_updated_date date not null default current_date,
   created_at timestamptz not null default now(),
