@@ -244,6 +244,7 @@ function renderDashboard() {
   const activeGroups = state.groups.filter((group) => group.status === "active").length;
   const membersWithCode = state.members.filter((member) => member.access_code).length;
   const groupsWithOwnerPassword = state.groups.filter((group) => group.owner_account_password).length;
+  const groupsWithOwnerEmail = state.groups.filter((group) => group.owner_account_email).length;
   const dueSoon = getDueSoonMembers();
 
   return `
@@ -251,6 +252,7 @@ function renderDashboard() {
       <div class="grid stats-grid">
         ${renderStat("กลุ่มทั้งหมด", state.groups.length)}
         ${renderStat("กลุ่มใช้งานได้", activeGroups)}
+        ${renderStat("มีอีเมลหัวบ้าน", groupsWithOwnerEmail)}
         ${renderStat("มี Password หัวบ้าน", groupsWithOwnerPassword)}
         ${renderStat("มีรหัสเข้าดู", membersWithCode)}
         ${renderStat("สมาชิกทั้งหมด", state.members.length)}
@@ -531,6 +533,11 @@ function renderGroupsAdmin() {
           <input name="group_name" value="${attr(record?.group_name)}" required />
         </label>
         <label class="field">
+          <span>อีเมลหัวบ้าน</span>
+          <input name="owner_account_email" type="email" value="${attr(record?.owner_account_email)}" placeholder="owner@example.com" />
+          <small class="field-hint">ใช้เป็นอีเมลหลักของกลุ่ม ไม่ต้องใส่ซ้ำในสมาชิก</small>
+        </label>
+        <label class="field">
           <span>Password บัญชีหัวบ้าน</span>
           <input
             name="owner_account_password"
@@ -576,6 +583,7 @@ function renderGroupsTable() {
         <thead>
           <tr>
             <th>ชื่อกลุ่ม</th>
+            <th>อีเมลหัวบ้าน</th>
             <th>Password หัวบ้าน</th>
             <th>สถานะ</th>
             <th>สมาชิก</th>
@@ -590,6 +598,7 @@ function renderGroupsTable() {
               return `
                 <tr>
                   <td><strong>${escapeHtml(group.group_name)}</strong></td>
+                  <td>${group.owner_account_email ? escapeHtml(group.owner_account_email) : `<span class="muted">-</span>`}</td>
                   <td>${group.owner_account_password ? `<span class="badge success">บันทึกแล้ว</span>` : `<span class="muted">-</span>`}</td>
                   <td>${renderStatusBadge(group.status)}</td>
                   <td>${memberCount}</td>
@@ -616,7 +625,7 @@ function renderMembersAdmin() {
       <div class="section-header">
         <div>
           <h2>${record ? "แก้ไขสมาชิก" : "เพิ่มสมาชิก"}</h2>
-          <p>อีเมลจริงจะเห็นเฉพาะฝั่งแอดมิน ฝั่งลูกค้าเห็นแค่ประเภทอีเมล</p>
+          <p>อีเมลหลักของกลุ่มอยู่ที่หัวบ้าน ส่วนสมาชิกใช้เก็บอีเมลสำรองได้ตามต้องการ</p>
         </div>
       </div>
       <form class="form-grid" data-form="member">
@@ -655,8 +664,9 @@ function renderMembersAdmin() {
           </select>
         </label>
         <label class="field">
-          <span>อีเมลจริง</span>
-          <input name="email" type="email" value="${attr(record?.email)}" required />
+          <span>อีเมลสำรอง</span>
+          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
+          <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
         </label>
         <label class="field">
           <span>วันที่ต้องชำระ</span>
@@ -692,7 +702,7 @@ function renderMembersTable(members, options = {}) {
             ${options.compact ? "" : "<th>รหัสเข้าดู</th>"}
             <th>กลุ่ม</th>
             <th>วันเกิด</th>
-            ${options.compact ? "" : "<th>อีเมลจริง</th>"}
+            ${options.compact ? "" : "<th>อีเมลสำรอง</th>"}
             <th>ประเภทอีเมล</th>
             <th>วันที่ต้องชำระ</th>
             <th>วันที่อัปเดท</th>
@@ -708,7 +718,7 @@ function renderMembersTable(members, options = {}) {
                   ${options.compact ? "" : `<td><code>${escapeHtml(member.access_code || "-")}</code></td>`}
                   <td>${escapeHtml(getGroupName(member.group_id))}</td>
                   <td>${formatBirthday(member)}</td>
-                  ${options.compact ? "" : `<td>${escapeHtml(member.email || "-")}</td>`}
+                  ${options.compact ? "" : `<td>${escapeHtml(member.backup_email || member.email || "-")}</td>`}
                   <td>${renderEmailTypeBadge(member.email_type)}</td>
                   <td>${formatDate(member.payment_due_date)}</td>
                   <td>${formatDate(member.data_updated_date)}</td>
@@ -1433,6 +1443,7 @@ async function saveGroup(form) {
   const clearOwnerPassword = formData.get("clear_owner_account_password") === "on";
   const payload = {
     group_name: clean(formData.get("group_name")),
+    owner_account_email: clean(formData.get("owner_account_email")) || null,
     status: clean(formData.get("status")) || "active",
     data_updated_date: todayInput()
   };
@@ -1464,7 +1475,7 @@ async function saveMember(form) {
     birthday_day: numberOrNull(formData.get("birthday_day")),
     birthday_month: numberOrNull(formData.get("birthday_month")),
     birthday_year: numberOrNull(formData.get("birthday_year")),
-    email: clean(formData.get("email")),
+    backup_email: clean(formData.get("backup_email")) || null,
     email_type: clean(formData.get("email_type")) || "store",
     payment_due_date: parsePaymentDueDate(formData.get("payment_due_date")),
     data_updated_date: todayInput()

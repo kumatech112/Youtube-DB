@@ -14,6 +14,7 @@ create table if not exists public.admin_profiles (
 create table if not exists public.groups (
   id uuid primary key default gen_random_uuid(),
   group_name text not null,
+  owner_account_email text,
   owner_account_password text,
   status text not null default 'active' check (status in ('active', 'maintenance')),
   data_updated_date date not null default current_date,
@@ -29,7 +30,7 @@ create table if not exists public.members (
   birthday_day int check (birthday_day between 1 and 31),
   birthday_month int check (birthday_month between 1 and 12),
   birthday_year int check (birthday_year between 1900 and 2200),
-  email text not null,
+  backup_email text,
   email_type text not null default 'store' check (email_type in ('store', 'customer')),
   payment_due_date date,
   data_updated_date date not null default current_date,
