@@ -595,7 +595,11 @@ function renderGroupsTable() {
                 <tr>
                   <td><strong>${escapeHtml(group.group_name)}</strong></td>
                   <td>${group.owner_account_email ? escapeHtml(group.owner_account_email) : `<span class="muted">-</span>`}</td>
-                  <td>${group.owner_account_password ? `<span class="badge success">บันทึกแล้ว</span>` : `<span class="muted">-</span>`}</td>
+                  <td>
+                    ${group.owner_account_password
+                      ? `<span class="badge success">บันทึกแล้ว</span> <button class="ghost-button" type="button" data-action="copy-owner-password" data-id="${attr(group.id)}">คัดลอก</button>`
+                      : `<span class="muted">-</span>`}
+                  </td>
                   <td>${renderStatusBadge(group.status)}</td>
                   <td>${memberCount}</td>
                   <td>${formatDate(group.data_updated_date)}</td>
@@ -1363,6 +1367,27 @@ async function handleClick(event) {
 
     if (action === "mark-member-paid") {
       await markMemberPaid(id);
+      return;
+    }
+
+    if (action === "copy-owner-password") {
+      const grp = state.groups.find((g) => String(g.id) === String(id));
+      if (!grp || !grp.owner_account_password) {
+        showToast("ไม่พบ Password สำหรับกลุ่มนี้", true);
+        return;
+      }
+      const text = String(grp.owner_account_password);
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (err) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      showToast("คัดลอก Password แล้ว");
       return;
     }
 
