@@ -669,7 +669,6 @@ function renderMembersAdmin() {
             type="date"
             value="${record?.birthday_due || ""}"
           />
-          <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
         </label>
         <label class="field full">
           <span>วันที่ต้องชำระ</span>
@@ -678,7 +677,6 @@ function renderMembersAdmin() {
             type="date"
             value="${record?.payment_due_date || ""}"
           />
-          <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
         </label>
         <div class="toolbar full">
           <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มสมาชิก"}</button>
