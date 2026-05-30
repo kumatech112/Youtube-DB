@@ -28,9 +28,6 @@ const state = {
   portal: null,
   portalAccessCode: null,
   selectedGroupId: null,
-  adminSelectedGroupId: null,
-  memberSearchQuery: "",
-  memberGroupFilter: "",
   memberPage: 1
 };
 
@@ -568,7 +565,6 @@ function renderGroupsAdmin() {
         </div>
       </form>
       ${renderGroupsTable()}
-      ${renderSelectedGroupMembers()}
     </section>
   `;
 }
@@ -598,11 +594,7 @@ function renderGroupsTable() {
               const memberCount = state.members.filter((member) => member.group_id === group.id).length;
               return `
                 <tr>
-                  <td>
-                    <button class="link-like-button group-name-button" type="button" data-action="view-group-members" data-id="${attr(group.id)}">
-                      <strong>${escapeHtml(group.group_name)}</strong>
-                    </button>
-                  </td>
+                  <td><strong>${escapeHtml(group.group_name)}</strong></td>
                   <td>${group.owner_account_email ? escapeHtml(group.owner_account_email) : `<span class="muted">-</span>`}</td>
                   <td>
                     ${group.owner_account_password
@@ -610,11 +602,7 @@ function renderGroupsTable() {
                       : `<span class="muted">-</span>`}
                   </td>
                   <td>${renderStatusBadge(group.status)}</td>
-                  <td>
-                    <button class="link-like-button" type="button" data-action="view-group-members" data-id="${attr(group.id)}">
-                      ${memberCount} คน
-                    </button>
-                  </td>
+                  <td>${memberCount}</td>
                   <td>${formatDate(group.data_updated_date)}</td>
                   <td class="actions">
                     <button class="ghost-button" type="button" data-action="edit-group" data-id="${attr(group.id)}">แก้ไข</button>
@@ -630,48 +618,14 @@ function renderGroupsTable() {
   `;
 }
 
-
-function renderSelectedGroupMembers() {
-  if (!state.adminSelectedGroupId) return "";
-
-  const group = state.groups.find((item) => String(item.id) === String(state.adminSelectedGroupId));
-  if (!group) return "";
-
-  const members = state.members
-    .filter((member) => String(member.group_id) === String(group.id))
-    .sort((a, b) => String(a.member_name).localeCompare(String(b.member_name), "th"));
-
-  return `
-    <section class="admin-group-members-panel">
-      <div class="section-header">
-        <div>
-          <h2>สมาชิกในกลุ่ม: ${escapeHtml(group.group_name)}</h2>
-          <p>พบสมาชิก ${members.length} คนในกลุ่มนี้</p>
-        </div>
-        <div class="toolbar">
-          <button class="primary-button" type="button" data-action="go-members-filter-group" data-id="${attr(group.id)}">เปิดในแถบสมาชิก</button>
-          <button class="ghost-button" type="button" data-action="close-group-members">ปิดรายการ</button>
-        </div>
-      </div>
-      ${
-        members.length
-          ? renderMembersTable(members)
-          : `<div class="empty-state"><p>ยังไม่มีสมาชิกในกลุ่มนี้</p></div>`
-      }
-    </section>
-  `;
-}
-
 function renderMembersAdmin() {
   const record = getEditingRecord("member", state.members);
 
   const sortedMembers = [...state.members].sort((a, b) => {
     const groupCompare = String(a.group_id).localeCompare(String(b.group_id));
     if (groupCompare !== 0) return groupCompare;
-    return String(a.member_name).localeCompare(String(b.member_name), "th");
+    return String(a.member_name).localeCompare(String(b.member_name), 'th');
   });
-
-  const filteredMembers = getFilteredMembers(sortedMembers);
 
   return `
     <section class="section-block">
@@ -690,12 +644,12 @@ function renderMembersAdmin() {
           </select>
         </label>
         <label class="field">
-          <span>ชื่อสมาชิก / ชื่อเฟส</span>
+          <span>ชื่อสมาชิก</span>
           <input name="member_name" value="${attr(record?.member_name)}" required />
         </label>
         <label class="field">
           <span>รหัสเข้าดู</span>
-          <input name="access_code" value="${attr(record?.access_code)}" required />
+          <input name="access_code" value="${attr(record?.access_code)}" placeholder="FKP-A7K29" required />
         </label>
         <label class="field">
           <span>ประเภทอีเมล</span>
@@ -705,18 +659,16 @@ function renderMembersAdmin() {
           </select>
         </label>
         <label class="field full">
-          <span>Email</span>
-          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
-          <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
-        </label>
-        <label class="field full">
           <span>วันเดือนปีเกิด</span>
           <input
             name="birthday_due"
             type="date"
             value="${record?.birthday_due || ""}"
           />
-          <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
+        <label class="field full">
+          <span>Email</span>
+          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
+          <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
         </label>
         <label class="field full">
           <span>วันที่ต้องชำระ</span>
@@ -732,76 +684,9 @@ function renderMembersAdmin() {
           ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
         </div>
       </form>
-      ${renderMemberFilters(filteredMembers.length, sortedMembers.length)}
-      ${renderMembersTable(filteredMembers)}
+      ${renderMembersTable(sortedMembers)}
     </section>
   `;
-}
-
-function renderMemberFilters(filteredCount, totalCount) {
-  return `
-    <form class="form-grid member-filter-panel" data-form="member-filter">
-      <label class="field">
-        <span>ค้นหาสมาชิก / ชื่อเฟส</span>
-        <input
-          name="member_search"
-          value="${attr(state.memberSearchQuery)}"
-          placeholder="พิมพ์ชื่อสมาชิก ชื่อเฟส อีเมล หรือรหัสเข้าดู"
-        />
-      </label>
-      <label class="field">
-        <span>กรองตามกลุ่ม</span>
-        <select name="member_group_filter">
-          <option value="">ทุกกลุ่ม</option>
-          ${state.groups.map((group) => option(group.id, group.group_name, state.memberGroupFilter)).join("")}
-        </select>
-      </label>
-      <div class="toolbar full member-filter-toolbar">
-        <button class="primary-button" type="submit">ค้นหา</button>
-        <button class="ghost-button" type="button" data-action="clear-member-filter">ล้างตัวกรอง</button>
-        <span class="member-filter-summary">แสดง ${filteredCount} จาก ${totalCount} รายการ</span>
-      </div>
-    </form>
-  `;
-}
-
-function getFilteredMembers(members) {
-  const search = normalizeSearchText(state.memberSearchQuery);
-  const groupFilter = String(state.memberGroupFilter || "");
-
-  return members.filter((member) => {
-    if (groupFilter && String(member.group_id) !== groupFilter) return false;
-    if (!search) return true;
-
-    const searchableText = normalizeSearchText([
-      member.member_name,
-      member.facebook_name,
-      member.display_name,
-      member.backup_email,
-      member.email,
-      member.access_code,
-      getGroupName(member.group_id),
-      emailTypeLabel(member.email_type)
-    ].join(" "));
-
-    return searchableText.includes(search);
-  });
-}
-
-function normalizeSearchText(value) {
-  return String(value ?? "")
-    .normalize("NFC")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function applyMemberFilter(form) {
-  const formData = new FormData(form);
-  state.memberSearchQuery = clean(formData.get("member_search"));
-  state.memberGroupFilter = clean(formData.get("member_group_filter"));
-  state.memberPage = 1;
-  void render();
 }
 
 function renderMembersTable(members, options = {}) {
@@ -1157,6 +1042,7 @@ function renderServicePlanTable() {
   `;
 }
 
+
 function renderCustomer() {
   if (!state.portal) {
     app.innerHTML = `
@@ -1197,7 +1083,7 @@ function renderCustomer() {
       <div>
         <span class="eyebrow">ข้อมูลของคุณ</span>
         <h1>สวัสดี ${escapeHtml(state.portal.customer.display_name)}</h1>
-        <p>${selectedGroup ? "รายละเอียดกลุ่มที่เลือก" : "กลุ่มที่คุณสามารถดูได้"}</p>
+        <p>${selectedGroup ? "รายละเอียดกลุ่มที่เลือก" : "กดการ์ดกลุ่มหรือไอคอนตาเพื่อดูรายละเอียด"}</p>
       </div>
       <div class="toolbar">
         ${selectedGroup ? `<button class="ghost-button" type="button" data-action="back-groups">กลับไปหน้ากลุ่ม</button>` : ""}
@@ -1216,21 +1102,22 @@ function renderCustomer() {
   `;
 }
 
+
 function renderCustomerSummary(summary) {
   return `
     <section class="customer-summary">
       <div class="summary-card">
-        <span>กลุ่มทั้งหมด</span>
+        <span>กลุ่มที่เข้าถึงได้</span>
         <strong>${summary.groupCount}</strong>
       </div>
       <div class="summary-card">
-        <span>ใช้งานได้</span>
-        <strong>${summary.activeCount}</strong>
+        <span>รายการของคุณ</span>
+        <strong>${summary.customerMemberCount || "-"}</strong>
       </div>
       <div class="summary-card wide">
-        <span>วันชำระถัดไป</span>
+        <span>วันชำระของคุณ</span>
         <strong>${summary.nextDue ? formatDate(summary.nextDue.date) : "-"}</strong>
-        ${summary.nextDue ? renderDueBadge(summary.nextDue) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
+        ${summary.nextDue ? renderDueBadge(summary.nextDue) : `<span class="badge">ยังไม่มีวันชำระของคุณ</span>`}
       </div>
     </section>
   `;
@@ -1266,6 +1153,7 @@ function renderCustomerAnnouncements(items) {
   `;
 }
 
+
 function renderCustomerGroupCards(groups) {
   if (!groups.length) {
     return `<section class="empty-state"><h1>ยังไม่มีกลุ่มที่ผูกกับรหัสนี้</h1></section>`;
@@ -1276,29 +1164,47 @@ function renderCustomerGroupCards(groups) {
       <div class="section-header">
         <div>
           <h2>กลุ่มของคุณ</h2>
+          <p>กดที่การ์ด หรือปุ่มรูปตา เพื่อดูรายละเอียดสมาชิกและวันชำระของคุณ</p>
         </div>
       </div>
-      <div class="group-grid">
+      <div class="group-grid customer-group-grid">
         ${groups
           .map((group) => {
-            const due = getGroupDueSummary(group);
+            const customerDue = getCustomerGroupDueSummary(group);
+            const customerMembers = getCustomerMembersForGroup(group);
             const memberCount = group.members?.length || 0;
+            const customerCountLabel = customerMembers.length
+              ? `${customerMembers.length} รายการของคุณ`
+              : `${memberCount} สมาชิก`;
             return `
-              <button class="group-card" type="button" data-action="select-customer-group" data-id="${attr(group.id)}">
+              <button
+                class="group-card customer-clickable-card"
+                type="button"
+                data-action="select-customer-group"
+                data-id="${attr(group.id)}"
+                aria-label="ดูรายละเอียดกลุ่ม ${attr(group.group_name)}"
+              >
                 <span class="group-card-top">
                   ${renderStatusBadge(group.status)}
-                  <span class="muted">${memberCount} สมาชิก</span>
-                </span>
-                <span>
-                  <h3>${escapeHtml(group.group_name)}</h3>
-                  <span class="muted">อัปเดท ${formatDate(group.data_updated_date)}</span>
-                </span>
-                <span class="group-card-footer">
-                  <span>
-                    <span class="muted">วันชำระถัดไป</span>
-                    <strong>${due ? formatDate(due.date) : "-"}</strong>
+                  <span class="group-card-view-hint">
+                    <span class="eye-icon" aria-hidden="true">👁️</span>
+                    <span>คลิกเพื่อดูรายละเอียด</span>
                   </span>
-                  ${due ? renderDueBadge(due) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
+                </span>
+                <span class="group-card-main">
+                  <h3>${escapeHtml(group.group_name)}</h3>
+                  <span class="muted">${escapeHtml(customerCountLabel)} · อัปเดท ${formatDate(group.data_updated_date)}</span>
+                </span>
+                <span class="group-card-footer customer-due-footer">
+                  <span>
+                    <span class="muted">วันชำระของคุณ</span>
+                    <strong>${customerDue ? formatDate(customerDue.date) : "-"}</strong>
+                  </span>
+                  ${customerDue ? renderDueBadge(customerDue) : `<span class="badge">ยังไม่มีวันชำระของคุณ</span>`}
+                </span>
+                <span class="group-card-cta">
+                  <span class="eye-icon" aria-hidden="true">👁️</span>
+                  <span>ดูรายละเอียดกลุ่ม</span>
                 </span>
               </button>
             `;
@@ -1309,8 +1215,11 @@ function renderCustomerGroupCards(groups) {
   `;
 }
 
+
 function renderCustomerGroupDetail(group) {
-  const due = getGroupDueSummary(group);
+  const customerMembers = getCustomerMembersForGroup(group);
+  const customerDue = getCustomerGroupDueSummary(group);
+  const currentMemberIds = new Set(customerMembers.map((member) => String(member.id)));
 
   return `
     <section class="customer-section">
@@ -1321,38 +1230,43 @@ function renderCustomerGroupDetail(group) {
         </div>
         ${renderStatusBadge(group.status)}
       </div>
-      <div class="detail-summary-grid">
+      <div class="detail-summary-grid customer-detail-summary-grid">
         <div>
-          <span>สมาชิก</span>
+          <span>สมาชิกในกลุ่ม</span>
           <strong>${group.members?.length || 0}</strong>
         </div>
         <div>
-          <span>วันชำระถัดไป</span>
-          <strong>${due ? formatDate(due.date) : "-"}</strong>
+          <span>วันชำระของคุณ</span>
+          <strong>${customerDue ? formatDate(customerDue.date) : "-"}</strong>
         </div>
         <div>
-          <span>สถานะวันชำระ</span>
-          ${due ? renderDueBadge(due) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
+          <span>สถานะชำระของคุณ</span>
+          ${customerDue ? renderDueBadge(customerDue) : `<span class="badge">ยังไม่มีวันชำระของคุณ</span>`}
         </div>
       </div>
+
+      ${renderCustomerOwnDuePanel(group)}
+
       ${
         group.members?.length
           ? `<div class="member-card-grid">
               ${group.members
                 .map((member) => {
                   const memberDue = getDueInfo(member.payment_due_date);
+                  const isCurrentCustomer = currentMemberIds.has(String(member.id));
                   return `
-                    <article class="member-card">
+                    <article class="member-card ${isCurrentCustomer ? "is-current-customer" : ""}">
                       <div class="member-card-header">
                         <div>
                           <span class="muted">ชื่อสมาชิก</span>
                           <h3>${escapeHtml(member.member_name)}</h3>
                         </div>
-                        ${memberDue ? renderDueBadge(memberDue) : ""}
+                        ${isCurrentCustomer ? `<span class="badge success">ข้อมูลของคุณ</span>` : memberDue ? renderDueBadge(memberDue) : ""}
                       </div>
                       <div class="member-payment">
                         <span>วันที่ต้องชำระ</span>
                         <strong>${formatDate(member.payment_due_date)}</strong>
+                        ${memberDue ? renderDueBadge(memberDue) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
                       </div>
                       <div class="member-meta-grid">
                         <div>
@@ -1426,7 +1340,6 @@ async function handleSubmit(event) {
   try {
     if (formType === "admin-login") await loginAdmin(form);
     if (formType === "customer-code") await openCustomerPortal(form);
-    if (formType === "member-filter") applyMemberFilter(form);
     if (formType === "group") await saveGroup(form);
     if (formType === "member") await saveMember(form);
     if (formType === "announcement") await saveAnnouncement(form);
@@ -1513,37 +1426,6 @@ async function handleClick(event) {
 
     if (action === "mark-member-paid") {
       await markMemberPaid(id);
-      return;
-    }
-
-    if (action === "view-group-members") {
-      state.adminSelectedGroupId = id;
-      state.memberPage = 1;
-      await render();
-      return;
-    }
-
-    if (action === "close-group-members") {
-      state.adminSelectedGroupId = null;
-      await render();
-      return;
-    }
-
-    if (action === "go-members-filter-group") {
-      state.adminTab = "members";
-      state.memberGroupFilter = id;
-      state.memberSearchQuery = "";
-      state.memberPage = 1;
-      state.editing = null;
-      await render();
-      return;
-    }
-
-    if (action === "clear-member-filter") {
-      state.memberSearchQuery = "";
-      state.memberGroupFilter = "";
-      state.memberPage = 1;
-      await render();
       return;
     }
 
@@ -1718,9 +1600,6 @@ async function saveMember(form) {
     throw new Error("กรุณาใส่รหัสเข้าดูของสมาชิก");
   }
 
-  if ((payload.birthday_day && !payload.birthday_month) || (!payload.birthday_day && payload.birthday_month)) {
-    throw new Error("วันเกิดต้องใส่ทั้งวันและเดือน หรือเว้นว่างทั้งหมด");
-  }
 
   if (record) {
     await checked(supabase.from("members").update(payload).eq("id", record.id));
@@ -2024,26 +1903,149 @@ function renderPlanAvailabilityBadge(availability) {
   return `<span class="badge ${className}">${escapeHtml(availability.badge)}</span>`;
 }
 
+
+function renderCustomerOwnDuePanel(group) {
+  const customerMembers = getCustomerMembersForGroup(group);
+
+  if (!customerMembers.length) {
+    return `
+      <div class="customer-own-payment-panel is-empty">
+        <div>
+          <span class="eyebrow">Payment</span>
+          <h3>ยังไม่พบวันชำระของคุณในกลุ่มนี้</h3>
+          <p>ถ้าข้อมูลไม่ตรง ลองรีเฟรชข้อมูล หรือติดต่อร้านเพื่อตรวจสอบรหัสลูกค้า</p>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="customer-own-payment-panel">
+      <div>
+        <span class="eyebrow">Payment</span>
+        <h3>ข้อมูลวันชำระของคุณ</h3>
+        <p>ใช้วันชำระของสมาชิกที่ตรงกับรหัสลูกค้านี้ ไม่ใช้วันชำระรวมของทั้งกลุ่ม</p>
+      </div>
+      <div class="customer-own-payment-list">
+        ${customerMembers
+          .map((member) => {
+            const due = getDueInfo(member.payment_due_date);
+            return `
+              <div class="customer-own-payment-item">
+                <div>
+                  <span class="muted">ชื่อสมาชิก</span>
+                  <strong>${escapeHtml(member.member_name)}</strong>
+                </div>
+                <div>
+                  <span class="muted">วันที่ต้องชำระ</span>
+                  <strong>${formatDate(member.payment_due_date)}</strong>
+                </div>
+                <div>
+                  <span class="muted">สถานะ</span>
+                  ${due ? renderDueBadge(due) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
+                </div>
+              </div>
+            `;
+          })
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
 function getCustomerPortalSummary(groups) {
-  const dueItems = groups
-    .map((group) => getGroupDueSummary(group))
+  const customerMembers = getCustomerVisibleMembers(groups);
+  const dueItems = customerMembers
+    .map((member) => getDueInfo(member.payment_due_date))
     .filter(Boolean)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     groupCount: groups.length,
     activeCount: groups.filter((group) => group.status === "active").length,
+    customerMemberCount: customerMembers.length,
     nextDue: dueItems[0] || null
   };
 }
 
-function getGroupDueSummary(group) {
-  const dueItems = (group.members || [])
+function getCustomerVisibleMembers(groups) {
+  return (groups || []).flatMap((group) => getCustomerMembersForGroup(group));
+}
+
+function getCustomerGroupDueSummary(group) {
+  const dueItems = getCustomerMembersForGroup(group)
     .map((member) => getDueInfo(member.payment_due_date))
     .filter(Boolean)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   return dueItems[0] || null;
+}
+
+function getCustomerMembersForGroup(group) {
+  const members = Array.isArray(group?.members) ? group.members : [];
+  const matchedMembers = getCustomerMatchedMembers(members);
+
+  if (matchedMembers.length) return matchedMembers;
+  if (members.length === 1) return members;
+  return [];
+}
+
+function getCustomerMatchedMembers(members) {
+  const customer = state.portal?.customer || {};
+  const portalAccessCode = normalizeAccessCode(state.portalAccessCode);
+  const customerAccessCode = normalizeAccessCode(
+    customer.access_code || customer.code || customer.customer_code || customer.portal_access_code
+  );
+  const possibleCustomerIds = [
+    customer.member_id,
+    customer.memberId,
+    customer.customer_member_id,
+    customer.id,
+    customer.customer_id
+  ]
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .map((value) => String(value));
+  const customerName = normalizeSearchText(
+    customer.display_name || customer.member_name || customer.name || customer.facebook_name
+  );
+
+  return (members || []).filter((member) => {
+    if (
+      member.is_current_user === true ||
+      member.is_current_customer === true ||
+      member.is_current_member === true ||
+      member.is_self === true
+    ) {
+      return true;
+    }
+
+    if (possibleCustomerIds.length && possibleCustomerIds.includes(String(member.id))) {
+      return true;
+    }
+
+    const memberName = normalizeSearchText(member.member_name || member.display_name || member.facebook_name || member.name);
+    if (customerName && memberName && memberName === customerName) {
+      return true;
+    }
+
+    const memberAccessCode = normalizeAccessCode(member.access_code || member.customer_code || member.portal_access_code);
+    if (portalAccessCode && memberAccessCode && memberAccessCode === portalAccessCode) {
+      return true;
+    }
+
+    if (customerAccessCode && memberAccessCode && memberAccessCode === customerAccessCode) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
+function normalizeAccessCode(value) {
+  return String(value ?? "")
+    .normalize("NFC")
+    .trim()
+    .toLowerCase();
 }
 
 function getDueInfo(value) {
@@ -2109,10 +2111,13 @@ function option(value, label, selectedValue) {
   return `<option value="${attr(value)}" ${String(value) === String(selectedValue || "") ? "selected" : ""}>${escapeHtml(label)}</option>`;
 }
 
+
 function formatBirthday(item) {
-  const day = item.birthday_day ? String(item.birthday_day).padStart(2, "0") : "";
-  const month = item.birthday_month ? String(item.birthday_month).padStart(2, "0") : "";
-  const year = item.birthday_year ? String(item.birthday_year) : "";
+  if (item?.birthday_due) return formatDate(item.birthday_due);
+
+  const day = item?.birthday_day ? String(item.birthday_day).padStart(2, "0") : "";
+  const month = item?.birthday_month ? String(item.birthday_month).padStart(2, "0") : "";
+  const year = item?.birthday_year ? String(item.birthday_year) : "";
 
   if (day && month && year) return `${day}/${month}/${year}`;
   if (day && month) return `${day}/${month}`;
