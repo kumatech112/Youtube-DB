@@ -28,6 +28,9 @@ const state = {
   portal: null,
   portalAccessCode: null,
   selectedGroupId: null,
+  adminSelectedGroupId: null,
+  memberSearchQuery: "",
+  memberGroupFilter: "",
   memberPage: 1
 };
 
@@ -539,6 +542,7 @@ function renderGroupsAdmin() {
           <input
             name="owner_account_password"
             type="password"
+            autocomplete="new-password"
             placeholder="${record?.owner_account_password ? "ตั้งค่าไว้แล้ว - กรอกใหม่เมื่อต้องการเปลี่ยน" : "ใส่ Password บัญชีหัวบ้าน"}"
           />
           <small class="field-hint">${record ? "ปล่อยว่างเพื่อใช้ Password เดิม" : "เก็บเฉพาะหลังบ้าน ไม่แสดงให้ลูกค้าเห็น"}</small>
@@ -564,6 +568,7 @@ function renderGroupsAdmin() {
         </div>
       </form>
       ${renderGroupsTable()}
+      ${renderSelectedGroupMembers()}
     </section>
   `;
 }
@@ -593,7 +598,11 @@ function renderGroupsTable() {
               const memberCount = state.members.filter((member) => member.group_id === group.id).length;
               return `
                 <tr>
-                  <td><strong>${escapeHtml(group.group_name)}</strong></td>
+                  <td>
+                    <button class="link-like-button group-name-button" type="button" data-action="view-group-members" data-id="${attr(group.id)}">
+                      <strong>${escapeHtml(group.group_name)}</strong>
+                    </button>
+                  </td>
                   <td>${group.owner_account_email ? escapeHtml(group.owner_account_email) : `<span class="muted">-</span>`}</td>
                   <td>
                     ${group.owner_account_password
@@ -601,7 +610,11 @@ function renderGroupsTable() {
                       : `<span class="muted">-</span>`}
                   </td>
                   <td>${renderStatusBadge(group.status)}</td>
-                  <td>${memberCount}</td>
+                  <td>
+                    <button class="link-like-button" type="button" data-action="view-group-members" data-id="${attr(group.id)}">
+                      ${memberCount} คน
+                    </button>
+                  </td>
                   <td>${formatDate(group.data_updated_date)}</td>
                   <td class="actions">
                     <button class="ghost-button" type="button" data-action="edit-group" data-id="${attr(group.id)}">แก้ไข</button>
@@ -617,14 +630,48 @@ function renderGroupsTable() {
   `;
 }
 
+
+function renderSelectedGroupMembers() {
+  if (!state.adminSelectedGroupId) return "";
+
+  const group = state.groups.find((item) => String(item.id) === String(state.adminSelectedGroupId));
+  if (!group) return "";
+
+  const members = state.members
+    .filter((member) => String(member.group_id) === String(group.id))
+    .sort((a, b) => String(a.member_name).localeCompare(String(b.member_name), "th"));
+
+  return `
+    <section class="admin-group-members-panel">
+      <div class="section-header">
+        <div>
+          <h2>สมาชิกในกลุ่ม: ${escapeHtml(group.group_name)}</h2>
+          <p>พบสมาชิก ${members.length} คนในกลุ่มนี้</p>
+        </div>
+        <div class="toolbar">
+          <button class="primary-button" type="button" data-action="go-members-filter-group" data-id="${attr(group.id)}">เปิดในแถบสมาชิก</button>
+          <button class="ghost-button" type="button" data-action="close-group-members">ปิดรายการ</button>
+        </div>
+      </div>
+      ${
+        members.length
+          ? renderMembersTable(members)
+          : `<div class="empty-state"><p>ยังไม่มีสมาชิกในกลุ่มนี้</p></div>`
+      }
+    </section>
+  `;
+}
+
 function renderMembersAdmin() {
   const record = getEditingRecord("member", state.members);
 
   const sortedMembers = [...state.members].sort((a, b) => {
     const groupCompare = String(a.group_id).localeCompare(String(b.group_id));
     if (groupCompare !== 0) return groupCompare;
-    return String(a.member_name).localeCompare(String(b.member_name), 'th');
+    return String(a.member_name).localeCompare(String(b.member_name), "th");
   });
+
+  const filteredMembers = getFilteredMembers(sortedMembers);
 
   return `
     <section class="section-block">
@@ -643,7 +690,7 @@ function renderMembersAdmin() {
           </select>
         </label>
         <label class="field">
-          <span>ชื่อสมาชิก</span>
+          <span>ชื่อสมาชิก / ชื่อเฟส</span>
           <input name="member_name" value="${attr(record?.member_name)}" required />
         </label>
         <label class="field">
@@ -658,16 +705,18 @@ function renderMembersAdmin() {
           </select>
         </label>
         <label class="field full">
+          <span>Email</span>
+          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
+          <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
+        </label>
+        <label class="field full">
           <span>วันเดือนปีเกิด</span>
           <input
             name="birthday_due"
             type="date"
             value="${record?.birthday_due || ""}"
           />
-        <label class="field full">
-          <span>Email</span>
-          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="Email@example.com" />
-          <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
+          <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
         </label>
         <label class="field full">
           <span>วันที่ต้องชำระ</span>
@@ -683,9 +732,76 @@ function renderMembersAdmin() {
           ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
         </div>
       </form>
-      ${renderMembersTable(sortedMembers)}
+      ${renderMemberFilters(filteredMembers.length, sortedMembers.length)}
+      ${renderMembersTable(filteredMembers)}
     </section>
   `;
+}
+
+function renderMemberFilters(filteredCount, totalCount) {
+  return `
+    <form class="form-grid member-filter-panel" data-form="member-filter">
+      <label class="field">
+        <span>ค้นหาสมาชิก / ชื่อเฟส</span>
+        <input
+          name="member_search"
+          value="${attr(state.memberSearchQuery)}"
+          placeholder="พิมพ์ชื่อสมาชิก ชื่อเฟส อีเมล หรือรหัสเข้าดู"
+        />
+      </label>
+      <label class="field">
+        <span>กรองตามกลุ่ม</span>
+        <select name="member_group_filter">
+          <option value="">ทุกกลุ่ม</option>
+          ${state.groups.map((group) => option(group.id, group.group_name, state.memberGroupFilter)).join("")}
+        </select>
+      </label>
+      <div class="toolbar full member-filter-toolbar">
+        <button class="primary-button" type="submit">ค้นหา</button>
+        <button class="ghost-button" type="button" data-action="clear-member-filter">ล้างตัวกรอง</button>
+        <span class="member-filter-summary">แสดง ${filteredCount} จาก ${totalCount} รายการ</span>
+      </div>
+    </form>
+  `;
+}
+
+function getFilteredMembers(members) {
+  const search = normalizeSearchText(state.memberSearchQuery);
+  const groupFilter = String(state.memberGroupFilter || "");
+
+  return members.filter((member) => {
+    if (groupFilter && String(member.group_id) !== groupFilter) return false;
+    if (!search) return true;
+
+    const searchableText = normalizeSearchText([
+      member.member_name,
+      member.facebook_name,
+      member.display_name,
+      member.backup_email,
+      member.email,
+      member.access_code,
+      getGroupName(member.group_id),
+      emailTypeLabel(member.email_type)
+    ].join(" "));
+
+    return searchableText.includes(search);
+  });
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function applyMemberFilter(form) {
+  const formData = new FormData(form);
+  state.memberSearchQuery = clean(formData.get("member_search"));
+  state.memberGroupFilter = clean(formData.get("member_group_filter"));
+  state.memberPage = 1;
+  void render();
 }
 
 function renderMembersTable(members, options = {}) {
@@ -1041,7 +1157,6 @@ function renderServicePlanTable() {
   `;
 }
 
-
 function renderCustomer() {
   if (!state.portal) {
     app.innerHTML = `
@@ -1334,6 +1449,7 @@ async function handleSubmit(event) {
   try {
     if (formType === "admin-login") await loginAdmin(form);
     if (formType === "customer-code") await openCustomerPortal(form);
+    if (formType === "member-filter") applyMemberFilter(form);
     if (formType === "group") await saveGroup(form);
     if (formType === "member") await saveMember(form);
     if (formType === "announcement") await saveAnnouncement(form);
@@ -1420,6 +1536,37 @@ async function handleClick(event) {
 
     if (action === "mark-member-paid") {
       await markMemberPaid(id);
+      return;
+    }
+
+    if (action === "view-group-members") {
+      state.adminSelectedGroupId = id;
+      state.memberPage = 1;
+      await render();
+      return;
+    }
+
+    if (action === "close-group-members") {
+      state.adminSelectedGroupId = null;
+      await render();
+      return;
+    }
+
+    if (action === "go-members-filter-group") {
+      state.adminTab = "members";
+      state.memberGroupFilter = id;
+      state.memberSearchQuery = "";
+      state.memberPage = 1;
+      state.editing = null;
+      await render();
+      return;
+    }
+
+    if (action === "clear-member-filter") {
+      state.memberSearchQuery = "";
+      state.memberGroupFilter = "";
+      state.memberPage = 1;
+      await render();
       return;
     }
 
@@ -1897,56 +2044,6 @@ function renderPlanAvailabilityBadge(availability) {
   return `<span class="badge ${className}">${escapeHtml(availability.badge)}</span>`;
 }
 
-
-function renderCustomerOwnDuePanel(group) {
-  const customerMembers = getCustomerMembersForGroup(group);
-
-  if (!customerMembers.length) {
-    return `
-      <div class="customer-own-payment-panel is-empty">
-        <div>
-          <span class="eyebrow">Payment</span>
-          <h3>ยังไม่พบวันชำระของคุณในกลุ่มนี้</h3>
-          <p>ถ้าข้อมูลไม่ตรง ลองรีเฟรชข้อมูล หรือติดต่อร้านเพื่อตรวจสอบรหัสลูกค้า</p>
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="customer-own-payment-panel">
-      <div>
-        <span class="eyebrow">Payment</span>
-        <h3>ข้อมูลวันชำระของคุณ</h3>
-        <p>ใช้วันชำระของสมาชิกที่ตรงกับรหัสลูกค้านี้ ไม่ใช้วันชำระรวมของทั้งกลุ่ม</p>
-      </div>
-      <div class="customer-own-payment-list">
-        ${customerMembers
-          .map((member) => {
-            const due = getDueInfo(member.payment_due_date);
-            return `
-              <div class="customer-own-payment-item">
-                <div>
-                  <span class="muted">ชื่อสมาชิก</span>
-                  <strong>${escapeHtml(member.member_name)}</strong>
-                </div>
-                <div>
-                  <span class="muted">วันที่ต้องชำระ</span>
-                  <strong>${formatDate(member.payment_due_date)}</strong>
-                </div>
-                <div>
-                  <span class="muted">สถานะ</span>
-                  ${due ? renderDueBadge(due) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
-                </div>
-              </div>
-            `;
-          })
-          .join("")}
-      </div>
-    </div>
-  `;
-}
-
 function getCustomerPortalSummary(groups) {
   const customerMembers = getCustomerVisibleMembers(groups);
   const dueItems = customerMembers
@@ -2036,13 +2133,6 @@ function getCustomerMatchedMembers(members) {
 }
 
 
-function normalizeSearchText(value) {
-  return String(value ?? "")
-    .normalize("NFC")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function normalizeAccessCode(value) {
   return String(value ?? "")
@@ -2113,7 +2203,6 @@ function contentTypeLabel(type) {
 function option(value, label, selectedValue) {
   return `<option value="${attr(value)}" ${String(value) === String(selectedValue || "") ? "selected" : ""}>${escapeHtml(label)}</option>`;
 }
-
 
 function formatBirthday(item) {
   if (item?.birthday_due) return formatDate(item.birthday_due);

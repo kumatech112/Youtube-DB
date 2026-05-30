@@ -1976,6 +1976,57 @@ code {
 }
 
 
+/* Admin: group member viewer + member filters */
+.link-like-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  padding: 0;
+  font-weight: 800;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-like-button:hover {
+  color: var(--accent);
+  text-decoration-thickness: 2px;
+}
+
+.group-name-button strong {
+  color: inherit;
+}
+
+.admin-group-members-panel {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  animation: liftIn 260ms ease both;
+}
+
+.member-filter-panel {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-4);
+  background: linear-gradient(135deg, #ffffff, #fff5f8);
+}
+
+.member-filter-toolbar {
+  justify-content: flex-start;
+}
+
+.member-filter-summary {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
 
 /* Customer UX: make clickable group cards clearer and show user-specific payment status */
 .customer-group-grid .customer-clickable-card {
