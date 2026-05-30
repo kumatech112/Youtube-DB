@@ -659,6 +659,10 @@ function renderMembersAdmin() {
           </select>
         </label>
         <label class="field full">
+        <label class="field full">
+          <span>Email</span>
+          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
+        </label>
           <span>วันเดือนปีเกิด</span>
           <input
             name="birthday_due"
@@ -666,11 +670,6 @@ function renderMembersAdmin() {
             value="${record?.birthday_due || ""}"
           />
           <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
-        </label>
-        <label class="field full">
-          <span>Email</span>
-          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
-          <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
         </label>
         <label class="field full">
           <span>วันที่ต้องชำระ</span>
