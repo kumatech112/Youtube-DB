@@ -509,6 +509,13 @@ textarea:focus-visible {
     background-color 140ms ease,
     border-color 140ms ease,
     box-shadow 140ms ease;
+  font-family: inherit;
+}
+
+.field input[type="date"],
+.field input[type="time"],
+.field input[type="datetime-local"] {
+  cursor: pointer;
 }
 
 .field textarea {

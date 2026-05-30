@@ -679,11 +679,10 @@ function renderMembersAdmin() {
           <span>วันที่ต้องชำระ</span>
           <input
             name="payment_due_date"
-            inputmode="numeric"
-            value="${attr(formatDateInputDisplay(record?.payment_due_date))}"
-            placeholder="16/05/2026"
+            type="date"
+            value="${record?.payment_due_date || ""}"
           />
-          <small class="field-hint">รูปแบบ วัน/เดือน/ปี เช่น 16/05/2026</small>
+          <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
         </label>
         <div class="toolbar full">
           <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มสมาชิก"}</button>
@@ -2000,17 +1999,17 @@ function parsePaymentDueDate(value) {
   const raw = clean(value);
   if (!raw) return null;
 
-  const thaiDate = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (thaiDate) {
-    return toIsoDate(thaiDate[3], thaiDate[2], thaiDate[1]);
-  }
-
   const isoDate = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (isoDate) {
     return toIsoDate(isoDate[1], isoDate[2], isoDate[3]);
   }
 
-  throw new Error("วันที่ต้องชำระต้องเป็นรูปแบบ วัน/เดือน/ปี เช่น 16/05/2026");
+  const thaiDate = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (thaiDate) {
+    return toIsoDate(thaiDate[3], thaiDate[2], thaiDate[1]);
+  }
+
+  throw new Error("วันที่ต้องชำระต้องเป็นรูปแบบ วัน/เดือน/ปี เช่น 16/05/2026 หรือเลือกจากปฏิทิน");
 }
 
 function toIsoDate(year, month, day) {
