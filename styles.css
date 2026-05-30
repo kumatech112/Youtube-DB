@@ -516,6 +516,12 @@ textarea:focus-visible {
 .field input[type="time"],
 .field input[type="datetime-local"] {
   cursor: pointer;
+  max-width: 220px;
+  min-width: 160px;
+}
+
+.field input[type="number"] {
+  max-width: 120px;
 }
 
 .field textarea {
