@@ -2041,6 +2041,15 @@ function getCustomerMatchedMembers(members) {
   });
 }
 
+
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeAccessCode(value) {
   return String(value ?? "")
     .normalize("NFC")
