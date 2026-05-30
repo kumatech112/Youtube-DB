@@ -539,7 +539,6 @@ function renderGroupsAdmin() {
           <input
             name="owner_account_password"
             type="password"
-            autocomplete="new-password"
             placeholder="${record?.owner_account_password ? "ตั้งค่าไว้แล้ว - กรอกใหม่เมื่อต้องการเปลี่ยน" : "ใส่ Password บัญชีหัวบ้าน"}"
           />
           <small class="field-hint">${record ? "ปล่อยว่างเพื่อใช้ Password เดิม" : "เก็บเฉพาะหลังบ้าน ไม่แสดงให้ลูกค้าเห็น"}</small>
