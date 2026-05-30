@@ -27,7 +27,8 @@ const state = {
   editing: null,
   portal: null,
   portalAccessCode: null,
-  selectedGroupId: null
+  selectedGroupId: null,
+  memberPage: 1
 };
 
 document.addEventListener("click", handleClick);
@@ -620,6 +621,12 @@ function renderGroupsTable() {
 function renderMembersAdmin() {
   const record = getEditingRecord("member", state.members);
 
+  const sortedMembers = [...state.members].sort((a, b) => {
+    const groupCompare = String(a.group_id).localeCompare(String(b.group_id));
+    if (groupCompare !== 0) return groupCompare;
+    return String(a.member_name).localeCompare(String(b.member_name), 'th');
+  });
+
   return `
     <section class="section-block">
       <div class="section-header">
@@ -664,7 +671,7 @@ function renderMembersAdmin() {
           <input name="birthday_year" type="number" min="1900" max="2200" value="${attr(record?.birthday_year)}" />
         </label>
         <label class="field full">
-          <span>อีเมลสำรอง</span>
+          <span>Email</span>
           <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
           <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
         </label>
@@ -683,7 +690,7 @@ function renderMembersAdmin() {
           ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
         </div>
       </form>
-      ${renderMembersTable(state.members)}
+      ${renderMembersTable(sortedMembers)}
     </section>
   `;
 }
@@ -693,7 +700,14 @@ function renderMembersTable(members, options = {}) {
     return `<div class="empty-state"><p>ยังไม่มีสมาชิก</p></div>`;
   }
 
-  return `
+  const pageSize = options.compact ? members.length : 10;
+  const totalPages = Math.ceil(members.length / pageSize);
+  const currentPage = options.compact ? 1 : Math.max(1, Math.min(state.memberPage, totalPages));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedMembers = members.slice(startIndex, endIndex);
+
+  let html = `
     <div class="table-wrap">
       <table>
         <thead>
@@ -702,7 +716,7 @@ function renderMembersTable(members, options = {}) {
             ${options.compact ? "" : "<th>รหัสเข้าดู</th>"}
             <th>กลุ่ม</th>
             <th>วันเกิด</th>
-            ${options.compact ? "" : "<th>อีเมลสำรอง</th>"}
+            ${options.compact ? "" : "<th>Email</th>"}
             <th>ประเภทอีเมล</th>
             <th>${options.showDueStatus ? "วันที่ต้องชำระ/สถานะ" : "วันที่ต้องชำระ"}</th>
             <th>วันที่อัปเดท</th>
@@ -711,7 +725,7 @@ function renderMembersTable(members, options = {}) {
           </tr>
         </thead>
         <tbody>
-          ${members
+          ${paginatedMembers
             .map((member) => {
               const dueInfo = options.showDueStatus ? getDueInfo(member.payment_due_date) : null;
               return `
@@ -752,6 +766,28 @@ function renderMembersTable(members, options = {}) {
       </table>
     </div>
   `;
+
+  if (!options.compact && totalPages > 1) {
+    html += `
+      <div class="pagination-controls">
+        <button class="ghost-button" type="button" data-action="prev-member-page" ${currentPage === 1 ? "disabled" : ""}>← ก่อนหน้า</button>
+        <div class="pagination-pages">
+          ${Array.from({ length: totalPages }, (_, i) => i + 1)
+            .map(
+              (page) => `
+                <button class="pagination-page ${page === currentPage ? "is-active" : ""}" type="button" data-action="goto-member-page" data-page="${page}">
+                  ${page}
+                </button>
+              `
+            )
+            .join("")}
+        </div>
+        <button class="ghost-button" type="button" data-action="next-member-page" ${currentPage === totalPages ? "disabled" : ""}>ถัดไป →</button>
+      </div>
+    `;
+  }
+
+  return html;
 }
 
 function renderAnnouncementsAdmin() {
@@ -1413,6 +1449,24 @@ async function handleClick(event) {
 
     if (action === "refresh-customer") {
       await refreshCustomerPortal();
+      return;
+    }
+
+    if (action === "next-member-page") {
+      state.memberPage += 1;
+      await render();
+      return;
+    }
+
+    if (action === "prev-member-page") {
+      state.memberPage = Math.max(1, state.memberPage - 1);
+      await render();
+      return;
+    }
+
+    if (action === "goto-member-page") {
+      state.memberPage = Number(actionButton.dataset.page) || 1;
+      await render();
       return;
     }
   } catch (error) {
