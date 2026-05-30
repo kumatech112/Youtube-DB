@@ -1074,16 +1074,14 @@ function renderCustomer() {
   }
 
   const groups = state.portal.groups || [];
-  const selectedGroup =
-    groups.find((group) => group.id === state.selectedGroupId) || null;
-  const summary = getCustomerPortalSummary(groups);
+  const selectedGroup = groups.find((group) => group.id === state.selectedGroupId) || null;
 
   app.innerHTML = `
     <div class="customer-page-header">
       <div>
         <span class="eyebrow">ข้อมูลของคุณ</span>
         <h1>สวัสดี ${escapeHtml(state.portal.customer.display_name)}</h1>
-        <p>${selectedGroup ? "รายละเอียดกลุ่มที่เลือก" : "กดการ์ดกลุ่มหรือไอคอนตาเพื่อดูรายละเอียด"}</p>
+        <p>${selectedGroup ? "รายละเอียดข้อมูลของคุณในกลุ่มนี้" : "กดการ์ดกลุ่มหรือไอคอนตาเพื่อดูข้อมูลของคุณ"}</p>
       </div>
       <div class="toolbar">
         ${selectedGroup ? `<button class="ghost-button" type="button" data-action="back-groups">กลับไปหน้ากลุ่ม</button>` : ""}
@@ -1092,8 +1090,6 @@ function renderCustomer() {
       </div>
     </div>
 
-    ${selectedGroup ? "" : renderCustomerSummary(summary)}
-
     ${
       selectedGroup
         ? renderCustomerGroupDetail(selectedGroup)
@@ -1101,7 +1097,6 @@ function renderCustomer() {
     }
   `;
 }
-
 
 function renderCustomerSummary(summary) {
   return `
@@ -1164,7 +1159,7 @@ function renderCustomerGroupCards(groups) {
       <div class="section-header">
         <div>
           <h2>กลุ่มของคุณ</h2>
-          <p>กดที่การ์ด หรือปุ่มรูปตา เพื่อดูรายละเอียดสมาชิกและวันชำระของคุณ</p>
+          <p>กดที่การ์ด หรือปุ่มรูปตา เพื่อดูเฉพาะข้อมูลของคุณ</p>
         </div>
       </div>
       <div class="group-grid customer-group-grid">
@@ -1172,23 +1167,22 @@ function renderCustomerGroupCards(groups) {
           .map((group) => {
             const customerDue = getCustomerGroupDueSummary(group);
             const customerMembers = getCustomerMembersForGroup(group);
-            const memberCount = group.members?.length || 0;
             const customerCountLabel = customerMembers.length
               ? `${customerMembers.length} รายการของคุณ`
-              : `${memberCount} สมาชิก`;
+              : "ยังไม่พบข้อมูลของคุณ";
             return `
               <button
                 class="group-card customer-clickable-card"
                 type="button"
                 data-action="select-customer-group"
                 data-id="${attr(group.id)}"
-                aria-label="ดูรายละเอียดกลุ่ม ${attr(group.group_name)}"
+                aria-label="ดูข้อมูลของคุณในกลุ่ม ${attr(group.group_name)}"
               >
                 <span class="group-card-top">
                   ${renderStatusBadge(group.status)}
                   <span class="group-card-view-hint">
                     <span class="eye-icon" aria-hidden="true">👁️</span>
-                    <span>คลิกเพื่อดูรายละเอียด</span>
+                    <span>คลิกเพื่อดูข้อมูลของคุณ</span>
                   </span>
                 </span>
                 <span class="group-card-main">
@@ -1204,7 +1198,7 @@ function renderCustomerGroupCards(groups) {
                 </span>
                 <span class="group-card-cta">
                   <span class="eye-icon" aria-hidden="true">👁️</span>
-                  <span>ดูรายละเอียดกลุ่ม</span>
+                  <span>ดูข้อมูลของฉัน</span>
                 </span>
               </button>
             `;
@@ -1215,81 +1209,82 @@ function renderCustomerGroupCards(groups) {
   `;
 }
 
-
 function renderCustomerGroupDetail(group) {
   const customerMembers = getCustomerMembersForGroup(group);
-  const customerDue = getCustomerGroupDueSummary(group);
-  const currentMemberIds = new Set(customerMembers.map((member) => String(member.id)));
 
   return `
-    <section class="customer-section">
-      <div class="group-detail-head">
+    <section class="customer-section customer-private-detail">
+      <div class="group-detail-head customer-private-head">
         <div>
+          <span class="eyebrow">Private Detail</span>
           <h2>${escapeHtml(group.group_name)}</h2>
-          <p>อัปเดท ${formatDate(group.data_updated_date)}</p>
+          <p>หน้านี้แสดงเฉพาะข้อมูลของรหัสลูกค้าที่เข้าสู่ระบบอยู่เท่านั้น</p>
         </div>
         ${renderStatusBadge(group.status)}
       </div>
-      <div class="detail-summary-grid customer-detail-summary-grid">
+
+      ${
+        customerMembers.length
+          ? `<div class="customer-private-card-grid">
+              ${customerMembers
+                .map((member) => renderCustomerPrivateMemberCard(member, group))
+                .join("")}
+            </div>`
+          : `<div class="customer-own-payment-panel is-empty">
+              <div>
+                <span class="eyebrow">Payment</span>
+                <h3>ยังไม่พบข้อมูลของคุณในกลุ่มนี้</h3>
+                <p>ถ้าข้อมูลไม่ตรง ลองกดรีเฟรช หรือติดต่อร้านเพื่อตรวจสอบรหัสลูกค้า</p>
+              </div>
+            </div>`
+      }
+    </section>
+  `;
+}
+
+function renderCustomerPrivateMemberCard(member, group) {
+  const due = getDueInfo(member.payment_due_date);
+
+  return `
+    <article class="customer-private-member-card">
+      <div class="customer-private-card-head">
         <div>
-          <span>สมาชิกในกลุ่ม</span>
-          <strong>${group.members?.length || 0}</strong>
+          <span class="muted">ชื่อสมาชิก / ชื่อเฟส</span>
+          <h3>${escapeHtml(member.member_name)}</h3>
+        </div>
+        <span class="badge success">ข้อมูลของคุณ</span>
+      </div>
+
+      <div class="customer-private-payment-box">
+        <span>วันที่ต้องชำระ</span>
+        <strong>${formatDate(member.payment_due_date)}</strong>
+        ${due ? renderDueBadge(due) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
+      </div>
+
+      <div class="member-meta-grid customer-private-meta-grid">
+        <div>
+          <span>กลุ่ม</span>
+          <strong>${escapeHtml(group.group_name)}</strong>
         </div>
         <div>
-          <span>วันชำระของคุณ</span>
-          <strong>${customerDue ? formatDate(customerDue.date) : "-"}</strong>
+          <span>วันเกิด</span>
+          <strong>${formatBirthday(member)}</strong>
         </div>
         <div>
-          <span>สถานะชำระของคุณ</span>
-          ${customerDue ? renderDueBadge(customerDue) : `<span class="badge">ยังไม่มีวันชำระของคุณ</span>`}
+          <span>ประเภทอีเมล</span>
+          <strong>${emailTypeLabel(member.email_type)}</strong>
+        </div>
+        <div>
+          <span>อัปเดทล่าสุด</span>
+          <strong>${formatDate(member.data_updated_date)}</strong>
         </div>
       </div>
 
-      ${renderCustomerOwnDuePanel(group)}
-
-      ${
-        group.members?.length
-          ? `<div class="member-card-grid">
-              ${group.members
-                .map((member) => {
-                  const memberDue = getDueInfo(member.payment_due_date);
-                  const isCurrentCustomer = currentMemberIds.has(String(member.id));
-                  return `
-                    <article class="member-card ${isCurrentCustomer ? "is-current-customer" : ""}">
-                      <div class="member-card-header">
-                        <div>
-                          <span class="muted">ชื่อสมาชิก</span>
-                          <h3>${escapeHtml(member.member_name)}</h3>
-                        </div>
-                        ${isCurrentCustomer ? `<span class="badge success">ข้อมูลของคุณ</span>` : memberDue ? renderDueBadge(memberDue) : ""}
-                      </div>
-                      <div class="member-payment">
-                        <span>วันที่ต้องชำระ</span>
-                        <strong>${formatDate(member.payment_due_date)}</strong>
-                        ${memberDue ? renderDueBadge(memberDue) : `<span class="badge">ยังไม่มีวันชำระ</span>`}
-                      </div>
-                      <div class="member-meta-grid">
-                        <div>
-                          <span>วันเกิด</span>
-                          <strong>${formatBirthday(member)}</strong>
-                        </div>
-                        <div>
-                          <span>ประเภทอีเมล</span>
-                          <strong>${emailTypeLabel(member.email_type)}</strong>
-                        </div>
-                        <div>
-                          <span>อัปเดทล่าสุด</span>
-                          <strong>${formatDate(member.data_updated_date)}</strong>
-                        </div>
-                      </div>
-                    </article>
-                  `;
-                })
-                .join("")}
-            </div>`
-          : `<div class="empty-state"><p>ยังไม่มีสมาชิกในกลุ่มนี้</p></div>`
-      }
-    </section>
+      <div class="privacy-note">
+        <span aria-hidden="true">🔒</span>
+        <span>ระบบซ่อนข้อมูลสมาชิกคนอื่นในกลุ่มนี้ แสดงเฉพาะข้อมูลของคุณเท่านั้น</span>
+      </div>
+    </article>
   `;
 }
 
@@ -1589,10 +1584,10 @@ async function saveMember(form) {
     group_id: clean(formData.get("group_id")),
     member_name: clean(formData.get("member_name")),
     access_code: clean(formData.get("access_code")),
-    birthday_due: parsePaymentDueDate(formData.get("birthday_due")),
+    birthday_due: parsePaymentDueDate(formData.get("birthday_due"), "วันเดือนปีเกิด"),
     backup_email: clean(formData.get("backup_email")) || null,
     email_type: clean(formData.get("email_type")) || "store",
-    payment_due_date: parsePaymentDueDate(formData.get("payment_due_date")),
+    payment_due_date: parsePaymentDueDate(formData.get("payment_due_date"), "วันที่ต้องชำระ"),
     data_updated_date: todayInput()
   };
 
@@ -2149,24 +2144,24 @@ function formatDateInputDisplay(value) {
   return `${day}/${month}/${year}`;
 }
 
-function parsePaymentDueDate(value) {
+function parsePaymentDueDate(value, fieldLabel = "วันที่ต้องชำระ") {
   const raw = clean(value);
   if (!raw) return null;
 
   const isoDate = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (isoDate) {
-    return toIsoDate(isoDate[1], isoDate[2], isoDate[3]);
+    return toIsoDate(isoDate[1], isoDate[2], isoDate[3], fieldLabel);
   }
 
   const thaiDate = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (thaiDate) {
-    return toIsoDate(thaiDate[3], thaiDate[2], thaiDate[1]);
+    return toIsoDate(thaiDate[3], thaiDate[2], thaiDate[1], fieldLabel);
   }
 
-  throw new Error("วันที่ต้องชำระต้องเป็นรูปแบบ วัน/เดือน/ปี เช่น 16/05/2026 หรือเลือกจากปฏิทิน");
+  throw new Error(`${fieldLabel}ต้องเป็นรูปแบบ วัน/เดือน/ปี เช่น 16/05/2026 หรือเลือกจากปฏิทิน`);
 }
 
-function toIsoDate(year, month, day) {
+function toIsoDate(year, month, day, fieldLabel = "วันที่ต้องชำระ") {
   const y = Number(year);
   const m = Number(month);
   const d = Number(day);
@@ -2182,7 +2177,7 @@ function toIsoDate(year, month, day) {
     parsed.getMonth() !== m - 1 ||
     parsed.getDate() !== d
   ) {
-    throw new Error("วันที่ต้องชำระไม่ถูกต้อง");
+    throw new Error(`${fieldLabel}ไม่ถูกต้อง`);
   }
 
   return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
