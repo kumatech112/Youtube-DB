@@ -628,76 +628,56 @@ function renderMembersAdmin() {
           <p>อีเมลหลักของกลุ่มอยู่ที่หัวบ้าน ส่วนสมาชิกใช้เก็บอีเมลสำรองได้ตามต้องการ</p>
         </div>
       </div>
-      <form class="form-grid member-form" data-form="member">
-        <fieldset class="form-fieldset full">
-          <legend>ข้อมูลพื้นฐาน</legend>
-          <div class="form-fieldset-content">
-            <label class="field">
-              <span>กลุ่ม</span>
-              <select name="group_id" required>
-                <option value="">เลือกกลุ่ม</option>
-                ${state.groups.map((group) => option(group.id, group.group_name, record?.group_id)).join("")}
-              </select>
-            </label>
-            <label class="field">
-              <span>ชื่อสมาชิก</span>
-              <input name="member_name" value="${attr(record?.member_name)}" required />
-            </label>
-            <label class="field">
-              <span>รหัสเข้าดู</span>
-              <input name="access_code" value="${attr(record?.access_code)}" placeholder="FKP-A7K29" required />
-            </label>
-          </div>
-        </fieldset>
-        <fieldset class="form-fieldset full">
-          <legend>วันเกิด</legend>
-          <div class="form-fieldset-content birthday-row">
-            <label class="field">
-              <span>วัน</span>
-              <input name="birthday_day" type="number" min="1" max="31" value="${attr(record?.birthday_day)}" />
-            </label>
-            <label class="field">
-              <span>เดือน</span>
-              <input name="birthday_month" type="number" min="1" max="12" value="${attr(record?.birthday_month)}" />
-            </label>
-            <label class="field">
-              <span>ปี</span>
-              <input name="birthday_year" type="number" min="1900" max="2200" value="${attr(record?.birthday_year)}" />
-            </label>
-          </div>
-        </fieldset>
-        <fieldset class="form-fieldset full">
-          <legend>อีเมล</legend>
-          <div class="form-fieldset-content">
-            <label class="field">
-              <span>ประเภทอีเมล</span>
-              <select name="email_type">
-                ${option("store", "อีเมลร้าน", record?.email_type)}
-                ${option("customer", "อีเมลลูกค้า", record?.email_type)}
-              </select>
-            </label>
-            <label class="field full">
-              <span>อีเมลสำรอง</span>
-              <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
-              <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
-            </label>
-          </div>
-        </fieldset>
-        <fieldset class="form-fieldset full">
-          <legend>วันชำระ</legend>
-          <div class="form-fieldset-content">
-            <label class="field full">
-              <span>วันที่ต้องชำระ</span>
-              <input
-                name="payment_due_date"
-                inputmode="numeric"
-                value="${attr(formatDateInputDisplay(record?.payment_due_date))}"
-                placeholder="16/05/2026"
-              />
-              <small class="field-hint">รูปแบบ วัน/เดือน/ปี เช่น 16/05/2026</small>
-            </label>
-          </div>
-        </fieldset>
+      <form class="form-grid" data-form="member">
+        <label class="field">
+          <span>กลุ่ม</span>
+          <select name="group_id" required>
+            <option value="">เลือกกลุ่ม</option>
+            ${state.groups.map((group) => option(group.id, group.group_name, record?.group_id)).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>ชื่อสมาชิก</span>
+          <input name="member_name" value="${attr(record?.member_name)}" required />
+        </label>
+        <label class="field">
+          <span>รหัสเข้าดู</span>
+          <input name="access_code" value="${attr(record?.access_code)}" placeholder="FKP-A7K29" required />
+        </label>
+        <label class="field">
+          <span>ประเภทอีเมล</span>
+          <select name="email_type">
+            ${option("store", "อีเมลร้าน", record?.email_type)}
+            ${option("customer", "อีเมลลูกค้า", record?.email_type)}
+          </select>
+        </label>
+        <label class="field">
+          <span>วันเกิด (วัน)</span>
+          <input name="birthday_day" type="number" min="1" max="31" value="${attr(record?.birthday_day)}" />
+        </label>
+        <label class="field">
+          <span>วันเกิด (เดือน)</span>
+          <input name="birthday_month" type="number" min="1" max="12" value="${attr(record?.birthday_month)}" />
+        </label>
+        <label class="field">
+          <span>วันเกิด (ปี)</span>
+          <input name="birthday_year" type="number" min="1900" max="2200" value="${attr(record?.birthday_year)}" />
+        </label>
+        <label class="field full">
+          <span>อีเมลสำรอง</span>
+          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
+          <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
+        </label>
+        <label class="field full">
+          <span>วันที่ต้องชำระ</span>
+          <input
+            name="payment_due_date"
+            inputmode="numeric"
+            value="${attr(formatDateInputDisplay(record?.payment_due_date))}"
+            placeholder="16/05/2026"
+          />
+          <small class="field-hint">รูปแบบ วัน/เดือน/ปี เช่น 16/05/2026</small>
+        </label>
         <div class="toolbar full">
           <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มสมาชิก"}</button>
           ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
