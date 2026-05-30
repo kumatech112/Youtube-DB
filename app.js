@@ -658,17 +658,14 @@ function renderMembersAdmin() {
             ${option("customer", "อีเมลลูกค้า", record?.email_type)}
           </select>
         </label>
-        <label class="field">
-          <span>วันเกิด (วัน)</span>
-          <input name="birthday_day" type="number" min="1" max="31" value="${attr(record?.birthday_day)}" />
-        </label>
-        <label class="field">
-          <span>วันเกิด (เดือน)</span>
-          <input name="birthday_month" type="number" min="1" max="12" value="${attr(record?.birthday_month)}" />
-        </label>
-        <label class="field">
-          <span>วันเกิด (ปี)</span>
-          <input name="birthday_year" type="number" min="1900" max="2200" value="${attr(record?.birthday_year)}" />
+        <label class="field full">
+          <span>วันเดือนปีเกิด</span>
+          <input
+            name="birthday_due"
+            type="date"
+            value="${record?.birthday_due || ""}"
+          />
+          <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
         </label>
         <label class="field full">
           <span>Email</span>
@@ -1565,21 +1562,15 @@ async function saveMember(form) {
     group_id: clean(formData.get("group_id")),
     member_name: clean(formData.get("member_name")),
     access_code: clean(formData.get("access_code")),
-    birthday_day: numberOrNull(formData.get("birthday_day")),
-    birthday_month: numberOrNull(formData.get("birthday_month")),
-    birthday_year: numberOrNull(formData.get("birthday_year")),
+    birthday_due: parsePaymentDueDate(formData.get("birthday_due"), "วันเดือนปีเกิด"),
     backup_email: clean(formData.get("backup_email")) || null,
     email_type: clean(formData.get("email_type")) || "store",
-    payment_due_date: parsePaymentDueDate(formData.get("payment_due_date")),
+    payment_due_date: parsePaymentDueDate(formData.get("payment_due_date"), "วันที่ต้องชำระ"),
     data_updated_date: todayInput()
   };
 
   if (!payload.access_code) {
     throw new Error("กรุณาใส่รหัสเข้าดูของสมาชิก");
-  }
-
-  if ((payload.birthday_day && !payload.birthday_month) || (!payload.birthday_day && payload.birthday_month)) {
-    throw new Error("วันเกิดต้องใส่ทั้งวันและเดือน หรือเว้นว่างทั้งหมด");
   }
 
   if (record) {
@@ -1970,9 +1961,11 @@ function option(value, label, selectedValue) {
 }
 
 function formatBirthday(item) {
-  const day = item.birthday_day ? String(item.birthday_day).padStart(2, "0") : "";
-  const month = item.birthday_month ? String(item.birthday_month).padStart(2, "0") : "";
-  const year = item.birthday_year ? String(item.birthday_year) : "";
+  if (item?.birthday_due) return formatDate(item.birthday_due);
+
+  const day = item?.birthday_day ? String(item.birthday_day).padStart(2, "0") : "";
+  const month = item?.birthday_month ? String(item.birthday_month).padStart(2, "0") : "";
+  const year = item?.birthday_year ? String(item.birthday_year) : "";
 
   if (day && month && year) return `${day}/${month}/${year}`;
   if (day && month) return `${day}/${month}`;
@@ -1995,24 +1988,24 @@ function formatDateInputDisplay(value) {
   return `${day}/${month}/${year}`;
 }
 
-function parsePaymentDueDate(value) {
+function parsePaymentDueDate(value, fieldLabel = "วันที่ต้องชำระ") {
   const raw = clean(value);
   if (!raw) return null;
 
   const isoDate = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (isoDate) {
-    return toIsoDate(isoDate[1], isoDate[2], isoDate[3]);
+    return toIsoDate(isoDate[1], isoDate[2], isoDate[3], fieldLabel);
   }
 
   const thaiDate = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (thaiDate) {
-    return toIsoDate(thaiDate[3], thaiDate[2], thaiDate[1]);
+    return toIsoDate(thaiDate[3], thaiDate[2], thaiDate[1], fieldLabel);
   }
 
-  throw new Error("วันที่ต้องชำระต้องเป็นรูปแบบ วัน/เดือน/ปี เช่น 16/05/2026 หรือเลือกจากปฏิทิน");
+  throw new Error(`${fieldLabel}ต้องเป็นรูปแบบ วัน/เดือน/ปี เช่น 16/05/2026 หรือเลือกจากปฏิทิน`);
 }
 
-function toIsoDate(year, month, day) {
+function toIsoDate(year, month, day, fieldLabel = "วันที่ต้องชำระ") {
   const y = Number(year);
   const m = Number(month);
   const d = Number(day);
@@ -2028,7 +2021,7 @@ function toIsoDate(year, month, day) {
     parsed.getMonth() !== m - 1 ||
     parsed.getDate() !== d
   ) {
-    throw new Error("วันที่ต้องชำระไม่ถูกต้อง");
+    throw new Error(`${fieldLabel}ไม่ถูกต้อง`);
   }
 
   return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;

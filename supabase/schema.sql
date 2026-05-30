@@ -27,9 +27,7 @@ create table if not exists public.members (
   group_id uuid not null references public.groups(id) on delete cascade,
   member_name text not null,
   access_code text not null,
-  birthday_day int check (birthday_day between 1 and 31),
-  birthday_month int check (birthday_month between 1 and 12),
-  birthday_year int check (birthday_year between 1900 and 2200),
+  birthday_due date ,
   backup_email text,
   email_type text not null default 'store' check (email_type in ('store', 'customer')),
   payment_due_date date,
@@ -255,9 +253,7 @@ begin
               jsonb_build_object(
                 'id', m.id,
                 'member_name', m.member_name,
-                'birthday_day', m.birthday_day,
-                'birthday_month', m.birthday_month,
-                'birthday_year', m.birthday_year,
+                'birthday_due', m.birthday_due,
                 'email_type', m.email_type,
                 'payment_due_date', m.payment_due_date,
                 'data_updated_date', m.data_updated_date
