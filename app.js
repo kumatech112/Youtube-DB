@@ -1573,6 +1573,7 @@ async function saveMember(form) {
     throw new Error("กรุณาใส่รหัสเข้าดูของสมาชิก");
   }
 
+
   if (record) {
     await checked(supabase.from("members").update(payload).eq("id", record.id));
   } else {
@@ -2035,7 +2036,7 @@ function parseDateInput(value) {
 
 function addMonthsToDateInput(value, months) {
   const date = parseDateInput(value);
-  if (!date) throw new Error("วันที่ต้องชำระไม่ถูกต้อง");
+  if (!date) throw new Error(`${fieldLabel}ไม่ถูกต้อง`);
 
   const originalDay = date.getDate();
   const target = new Date(date.getFullYear(), date.getMonth() + months, 1);
