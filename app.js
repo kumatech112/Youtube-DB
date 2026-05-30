@@ -1170,7 +1170,7 @@ function renderCustomer() {
           <form class="form-grid" data-form="customer-code">
             <label class="field full">
               <span>รหัสลูกค้า</span>
-              <input name="access_code" autocomplete="one-time-code" placeholder="FKP-A7K29" required />
+              <input name="access_code" autocomplete="one-time-code" required />
               <small class="field-hint">รหัสนี้ได้รับจากร้านเท่านั้น</small>
             </label>
             <div class="toolbar full">
