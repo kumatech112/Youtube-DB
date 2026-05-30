@@ -1907,13 +1907,61 @@ code {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.001ms !important;
+.member-form {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+.form-fieldset {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  animation: liftIn 260ms ease both;
+}
+
+.form-fieldset legend {
+  display: block;
+  margin: 0 0 8px 0;
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-fieldset-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.form-fieldset-content.birthday-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.form-fieldset.full .form-fieldset-content {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 820px) {
+  .member-form {
+    gap: var(--space-3);
+  }
+
+  .form-fieldset {
+    padding: var(--space-3);
+  }
+
+  .form-fieldset-content {
+    grid-template-columns: 1fr;
+  }
+
+  .form-fieldset-content.birthday-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
