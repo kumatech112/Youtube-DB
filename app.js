@@ -649,7 +649,7 @@ function renderMembersAdmin() {
         </label>
         <label class="field">
           <span>รหัสเข้าดู</span>
-          <input name="access_code" value="${attr(record?.access_code)}" placeholder="FKP-A7K29" required />
+          <input name="access_code" value="${attr(record?.access_code)}" required />
         </label>
         <label class="field">
           <span>ประเภทอีเมล</span>
@@ -667,7 +667,7 @@ function renderMembersAdmin() {
           />
         <label class="field full">
           <span>Email</span>
-          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="backup@example.com" />
+          <input name="backup_email" type="email" value="${attr(record?.backup_email || record?.email)}" placeholder="Email@example.com" />
           <small class="field-hint">ไม่บังคับกรอก ใช้เก็บอีเมลสำรองของสมาชิก</small>
         </label>
         <label class="field full">
