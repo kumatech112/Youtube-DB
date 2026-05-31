@@ -36,6 +36,8 @@ const state = {
 
 document.addEventListener("click", handleClick);
 document.addEventListener("submit", handleSubmit);
+document.addEventListener("input", handleInput);
+document.addEventListener("change", handleChange);
 document.addEventListener("keydown", handleKeydown);
 window.addEventListener("popstate", () => {
   state.route = resolveRoute();
@@ -224,6 +226,7 @@ function renderAdminShell(content) {
           <p>${escapeHtml(state.session?.user?.email || "")}</p>
         </div>
         <div class="toolbar">
+          <button class="primary-button" type="button" data-action="export-admin-report">Export Excel</button>
           <button class="ghost-button" type="button" data-action="refresh-admin">โหลดใหม่</button>
           <button class="danger-button" type="button" data-action="logout">ออกจากระบบ</button>
         </div>
@@ -549,9 +552,9 @@ function renderGroupsAdmin() {
         </label>
         <label class="field">
           <span>สถานะ</span>
-          <select name="status">
-            ${option("active", "ใช้งานได้", record?.status)}
-            ${option("maintenance", "ปรับปรุง", record?.status)}
+          <select class="status-select" name="status">
+            ${option("active", "ใช้งานได้ - เปิดให้ลูกค้าดู", record?.status)}
+            ${option("maintenance", "ปรับปรุง - แจ้งเตือนลูกค้า", record?.status)}
           </select>
         </label>
         ${
@@ -664,13 +667,7 @@ function renderSelectedGroupMembers() {
 
 function renderMembersAdmin() {
   const record = getEditingRecord("member", state.members);
-
-  const sortedMembers = [...state.members].sort((a, b) => {
-    const groupCompare = String(a.group_id).localeCompare(String(b.group_id));
-    if (groupCompare !== 0) return groupCompare;
-    return String(a.member_name).localeCompare(String(b.member_name), "th");
-  });
-
+  const sortedMembers = getSortedMembers();
   const filteredMembers = getFilteredMembers(sortedMembers);
 
   return `
@@ -684,10 +681,8 @@ function renderMembersAdmin() {
       <form class="form-grid" data-form="member">
         <label class="field">
           <span>กลุ่ม</span>
-          <select name="group_id" required>
-            <option value="">เลือกกลุ่ม</option>
-            ${state.groups.map((group) => option(group.id, group.group_name, record?.group_id)).join("")}
-          </select>
+          ${renderGroupSearchField("group_id", record?.group_id)}
+          <small class="field-hint">พิมพ์ชื่อกลุ่มเพื่อค้นหา แล้วเลือกจากรายการแนะนำ</small>
         </label>
         <label class="field">
           <span>ชื่อสมาชิก / ชื่อเฟส</span>
@@ -711,20 +706,12 @@ function renderMembersAdmin() {
         </label>
         <label class="field full">
           <span>วันเดือนปีเกิด</span>
-          <input
-            name="birthday_due"
-            type="date"
-            value="${record?.birthday_due || ""}"
-          />
+          ${renderDateField("birthday_due", record?.birthday_due, "วันเดือนปีเกิด")}
           <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
         </label>
         <label class="field full">
           <span>วันที่ต้องชำระ</span>
-          <input
-            name="payment_due_date"
-            type="date"
-            value="${record?.payment_due_date || ""}"
-          />
+          ${renderDateField("payment_due_date", record?.payment_due_date, "วันที่ต้องชำระ")}
           <small class="field-hint">เลือกวันที่จากปฏิทิน หรือพิมพ์ในรูปแบบ วัน/เดือน/ปี</small>
         </label>
         <div class="toolbar full">
@@ -733,7 +720,7 @@ function renderMembersAdmin() {
         </div>
       </form>
       ${renderMemberFilters(filteredMembers.length, sortedMembers.length)}
-      ${renderMembersTable(filteredMembers)}
+      ${renderMemberResults(filteredMembers)}
     </section>
   `;
 }
@@ -757,12 +744,57 @@ function renderMemberFilters(filteredCount, totalCount) {
         </select>
       </label>
       <div class="toolbar full member-filter-toolbar">
-        <button class="primary-button" type="submit">ค้นหา</button>
+        <button class="primary-button" type="button" data-action="export-admin-report">Export Excel</button>
         <button class="ghost-button" type="button" data-action="clear-member-filter">ล้างตัวกรอง</button>
-        <span class="member-filter-summary">แสดง ${filteredCount} จาก ${totalCount} รายการ</span>
+        <span class="member-filter-summary" data-member-filter-summary>${getMemberFilterSummary(filteredCount, totalCount)}</span>
       </div>
     </form>
   `;
+}
+
+function renderMemberResults(members) {
+  return `<div id="member-results" class="member-results">${renderMembersTable(members)}</div>`;
+}
+
+function renderGroupSearchField(fieldName, selectedGroupId) {
+  const selectedGroup = state.groups.find((group) => String(group.id) === String(selectedGroupId || ""));
+  const listId = `${fieldName}-search-options`;
+
+  return `
+    <div class="searchable-group-control">
+      <input
+        name="${attr(fieldName)}_search"
+        value="${attr(selectedGroup?.group_name || "")}"
+        list="${attr(listId)}"
+        placeholder="พิมพ์ชื่อกลุ่มเพื่อค้นหา"
+        autocomplete="off"
+        required
+        data-group-search
+        data-group-target="${attr(fieldName)}"
+      />
+      <input
+        type="hidden"
+        name="${attr(fieldName)}"
+        value="${attr(selectedGroup?.id || "")}"
+        data-group-value="${attr(fieldName)}"
+      />
+      <datalist id="${attr(listId)}">
+        ${state.groups.map((group) => `<option value="${attr(group.group_name)}"></option>`).join("")}
+      </datalist>
+    </div>
+  `;
+}
+
+function getMemberFilterSummary(filteredCount, totalCount) {
+  return `แสดง ${filteredCount} จาก ${totalCount} รายการ`;
+}
+
+function getSortedMembers() {
+  return [...state.members].sort((a, b) => {
+    const groupCompare = String(a.group_id).localeCompare(String(b.group_id));
+    if (groupCompare !== 0) return groupCompare;
+    return String(a.member_name).localeCompare(String(b.member_name), "th");
+  });
 }
 
 function getFilteredMembers(members) {
@@ -796,12 +828,33 @@ function normalizeSearchText(value) {
     .trim();
 }
 
-function applyMemberFilter(form) {
+function updateMemberFilterFromControls(form) {
   const formData = new FormData(form);
   state.memberSearchQuery = clean(formData.get("member_search"));
   state.memberGroupFilter = clean(formData.get("member_group_filter"));
   state.memberPage = 1;
-  void render();
+}
+
+function applyMemberFilter(form) {
+  updateMemberFilterFromControls(form);
+  refreshMemberResults();
+}
+
+function refreshMemberResults() {
+  if (state.route !== "admin" || state.adminTab !== "members") return;
+
+  const sortedMembers = getSortedMembers();
+  const filteredMembers = getFilteredMembers(sortedMembers);
+  const summary = document.querySelector("[data-member-filter-summary]");
+  const results = document.querySelector("#member-results");
+
+  if (summary) {
+    summary.textContent = getMemberFilterSummary(filteredMembers.length, sortedMembers.length);
+  }
+
+  if (results) {
+    results.innerHTML = renderMembersTable(filteredMembers);
+  }
 }
 
 function renderMembersTable(members, options = {}) {
@@ -897,6 +950,40 @@ function renderMembersTable(members, options = {}) {
   }
 
   return html;
+}
+
+function renderDateField(name, isoValue, label) {
+  const value = isoValue || "";
+  return `
+    <div class="date-control" data-date-control="${attr(name)}">
+      <input
+        class="date-display-input"
+        name="${attr(name)}_display"
+        inputmode="numeric"
+        autocomplete="off"
+        placeholder="31/05/2026"
+        value="${attr(formatDateInputDisplay(value))}"
+        data-date-display
+        data-date-field="${attr(name)}"
+        data-date-label="${attr(label)}"
+      />
+      <input
+        class="date-native-input"
+        type="date"
+        value="${attr(value)}"
+        data-date-picker
+        data-date-field="${attr(name)}"
+        aria-label="เลือก${attr(label)}จากปฏิทิน"
+      />
+      <input
+        type="hidden"
+        name="${attr(name)}"
+        value="${attr(value)}"
+        data-date-value
+        data-date-field="${attr(name)}"
+      />
+    </div>
+  `;
 }
 
 function renderAnnouncementsAdmin() {
@@ -1460,6 +1547,133 @@ async function handleSubmit(event) {
   }
 }
 
+function handleInput(event) {
+  const target = event.target;
+
+  if (target.matches("[data-date-display]")) {
+    syncDateDisplay(target);
+    return;
+  }
+
+  if (target.matches("[data-group-search]")) {
+    syncGroupSearch(target);
+    return;
+  }
+
+  if (target.name === "member_search") {
+    const form = target.closest("form[data-form='member-filter']");
+    if (!form) return;
+    updateMemberFilterFromControls(form);
+    refreshMemberResults();
+  }
+}
+
+function handleChange(event) {
+  const target = event.target;
+
+  if (target.matches("[data-date-picker]")) {
+    syncDatePicker(target);
+    return;
+  }
+
+  if (target.matches("[data-group-search]")) {
+    syncGroupSearch(target, { commitDisplay: true });
+    return;
+  }
+
+  if (target.name === "member_group_filter") {
+    const form = target.closest("form[data-form='member-filter']");
+    if (!form) return;
+    updateMemberFilterFromControls(form);
+    refreshMemberResults();
+  }
+}
+
+function syncDateDisplay(input) {
+  const control = input.closest(".date-control");
+  if (!control) return;
+
+  const hidden = control.querySelector("[data-date-value]");
+  const picker = control.querySelector("[data-date-picker]");
+  const raw = clean(input.value);
+
+  if (!raw) {
+    if (hidden) hidden.value = "";
+    if (picker) picker.value = "";
+    input.setCustomValidity("");
+    return;
+  }
+
+  try {
+    const isoDate = parsePaymentDueDate(raw, input.dataset.dateLabel || "วันที่");
+    if (hidden) hidden.value = isoDate;
+    if (picker) picker.value = isoDate;
+    input.setCustomValidity("");
+  } catch (_error) {
+    if (hidden) hidden.value = "";
+    input.setCustomValidity("กรุณาใส่วันที่เป็น วัน/เดือน/ปี เช่น 31/05/2026");
+  }
+}
+
+function syncDatePicker(input) {
+  const control = input.closest(".date-control");
+  if (!control) return;
+
+  const hidden = control.querySelector("[data-date-value]");
+  const display = control.querySelector("[data-date-display]");
+  const value = clean(input.value);
+
+  if (hidden) hidden.value = value;
+  if (display) {
+    display.value = formatDateInputDisplay(value);
+    display.setCustomValidity("");
+  }
+}
+
+function syncGroupSearch(input, options = {}) {
+  const fieldName = input.dataset.groupTarget;
+  const control = input.closest(".searchable-group-control");
+  if (!fieldName || !control) return;
+
+  const hidden = control.querySelector(`[data-group-value="${fieldName}"]`);
+  const raw = clean(input.value);
+
+  if (!raw) {
+    if (hidden) hidden.value = "";
+    input.setCustomValidity("");
+    return;
+  }
+
+  const matchedGroup = findGroupBySearchText(raw);
+  if (hidden) hidden.value = matchedGroup?.id || "";
+
+  if (matchedGroup) {
+    input.setCustomValidity("");
+    if (options.commitDisplay) {
+      input.value = matchedGroup.group_name;
+    }
+    return;
+  }
+
+  input.setCustomValidity("กรุณาเลือกชื่อกลุ่มจากรายการแนะนำ");
+}
+
+function findGroupBySearchText(value) {
+  const search = normalizeSearchText(value);
+  if (!search) return null;
+
+  const exact = state.groups.find((group) => normalizeSearchText(group.group_name) === search);
+  if (exact) return exact;
+
+  const startsWith = state.groups.filter((group) => normalizeSearchText(group.group_name).startsWith(search));
+  if (startsWith.length === 1) return startsWith[0];
+
+  const includes = state.groups.filter((group) => normalizeSearchText(group.group_name).includes(search));
+  if (includes.length === 1) return includes[0];
+
+  return null;
+}
+
 async function handleClick(event) {
   const lightboxBackdrop = event.target.closest("[data-lightbox-backdrop]");
   if (lightboxBackdrop && event.target === lightboxBackdrop) {
@@ -1507,6 +1721,11 @@ async function handleClick(event) {
     if (action === "refresh-admin") {
       state.adminLoaded = false;
       await render();
+      return;
+    }
+
+    if (action === "export-admin-report") {
+      exportAdminReport();
       return;
     }
 
@@ -1566,7 +1785,14 @@ async function handleClick(event) {
       state.memberSearchQuery = "";
       state.memberGroupFilter = "";
       state.memberPage = 1;
-      await render();
+      const form = document.querySelector("form[data-form='member-filter']");
+      if (form) {
+        const searchInput = form.querySelector("[name='member_search']");
+        const groupSelect = form.querySelector("[name='member_group_filter']");
+        if (searchInput) searchInput.value = "";
+        if (groupSelect) groupSelect.value = "";
+      }
+      refreshMemberResults();
       return;
     }
 
@@ -1730,15 +1956,19 @@ async function saveMember(form) {
     group_id: clean(formData.get("group_id")),
     member_name: clean(formData.get("member_name")),
     access_code: clean(formData.get("access_code")),
-    birthday_due: parsePaymentDueDate(formData.get("birthday_due"), "วันเดือนปีเกิด"),
+    birthday_due: getDateFieldValue(form, "birthday_due", "วันเดือนปีเกิด"),
     backup_email: clean(formData.get("backup_email")) || null,
     email_type: clean(formData.get("email_type")) || "store",
-    payment_due_date: parsePaymentDueDate(formData.get("payment_due_date"), "วันที่ต้องชำระ"),
+    payment_due_date: getDateFieldValue(form, "payment_due_date", "วันที่ต้องชำระ"),
     data_updated_date: todayInput()
   };
 
   if (!payload.access_code) {
     throw new Error("กรุณาใส่รหัสเข้าดูของสมาชิก");
+  }
+
+  if (!payload.group_id) {
+    throw new Error("กรุณาเลือกกลุ่มจากรายการแนะนำ");
   }
 
 
@@ -1749,6 +1979,14 @@ async function saveMember(form) {
   }
 
   await reloadAfterSave("บันทึกสมาชิกแล้ว");
+}
+
+function getDateFieldValue(form, fieldName, fieldLabel) {
+  const display = form.querySelector(`[data-date-display][data-date-field="${fieldName}"]`);
+  const hidden = form.querySelector(`[name="${fieldName}"]`);
+  const raw = clean(display?.value || hidden?.value);
+  if (!raw) return null;
+  return parsePaymentDueDate(raw, fieldLabel);
 }
 
 async function saveAnnouncement(form) {
@@ -1901,6 +2139,198 @@ async function markMemberPaid(memberId) {
   );
 
   await reloadAfterSave(`อัปเดทวันชำระถัดไปเป็น ${formatDate(nextDueDate)}`);
+}
+
+function exportAdminReport() {
+  if (!state.adminLoaded) {
+    throw new Error("กรุณารอให้โหลดข้อมูลหลังบ้านให้เสร็จก่อน");
+  }
+
+  const filteredMembers = getFilteredMembers(getSortedMembers());
+  const hasActiveMemberFilter = Boolean(state.memberSearchQuery || state.memberGroupFilter);
+  const worksheets = [
+    ["ข้อมูลร้าน", buildSiteSettingsReportRows()],
+    ["สมาชิกทั้งหมด", buildMemberReportRows(getSortedMembers())],
+    ["กลุ่ม", buildGroupReportRows()],
+    ["ประกาศ", buildAnnouncementReportRows()],
+    ["สินค้าและบริการ", buildServicePlanReportRows()]
+  ];
+
+  if (hasActiveMemberFilter) {
+    worksheets.splice(2, 0, ["สมาชิกตามตัวกรอง", buildMemberReportRows(filteredMembers)]);
+  }
+
+  const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:html="http://www.w3.org/TR/REC-html40">
+  <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+    <Title>FKP Shop Report</Title>
+    <Created>${new Date().toISOString()}</Created>
+  </DocumentProperties>
+  ${worksheets.map(([name, rows]) => renderExcelWorksheet(name, rows)).join("")}
+</Workbook>`;
+
+  downloadTextFile(workbook, `fkp-shop-report-${todayInput()}.xls`, "application/vnd.ms-excel;charset=utf-8");
+  showToast("ดาวน์โหลด Report Excel แล้ว");
+}
+
+function buildSiteSettingsReportRows() {
+  const settings = getSiteSettings();
+  return [
+    ["หัวข้อ", "ข้อมูล"],
+    ["ชื่อร้าน/หัวข้อหน้าแรก", settings.hero_title],
+    ["คำอธิบายหน้าแรก", settings.hero_subtitle],
+    ["LINE URL", settings.line_url],
+    ["LINE Label", settings.line_label],
+    ["Facebook URL", settings.facebook_url],
+    ["Facebook Label", settings.facebook_label],
+    ["วันที่ Export", formatDate(todayInput())]
+  ];
+}
+
+function buildGroupReportRows() {
+  return [
+    ["ลำดับ", "ชื่อกลุ่ม", "สถานะ", "อีเมลหัวบ้าน", "Password หัวบ้าน", "จำนวนสมาชิก", "วันที่อัปเดท"],
+    ...state.groups.map((group, index) => [
+      index + 1,
+      group.group_name,
+      groupStatusLabel(group.status),
+      group.owner_account_email,
+      group.owner_account_password,
+      state.members.filter((member) => String(member.group_id) === String(group.id)).length,
+      formatDate(group.data_updated_date)
+    ])
+  ];
+}
+
+function buildMemberReportRows(members) {
+  return [
+    [
+      "ลำดับ",
+      "ชื่อสมาชิก / ชื่อเฟส",
+      "รหัสเข้าดู",
+      "กลุ่ม",
+      "สถานะกลุ่ม",
+      "อีเมลหัวบ้าน",
+      "Password หัวบ้าน",
+      "วันเกิด",
+      "Email",
+      "ประเภทอีเมล",
+      "วันที่ต้องชำระ",
+      "สถานะวันชำระ",
+      "วันที่อัปเดทสมาชิก"
+    ],
+    ...members.map((member, index) => {
+      const group = state.groups.find((item) => String(item.id) === String(member.group_id));
+      const due = getDueInfo(member.payment_due_date);
+      return [
+        index + 1,
+        member.member_name,
+        member.access_code,
+        group?.group_name || "-",
+        groupStatusLabel(group?.status),
+        group?.owner_account_email || "",
+        group?.owner_account_password || "",
+        formatBirthday(member),
+        member.backup_email || member.email || "",
+        emailTypeLabel(member.email_type),
+        formatDate(member.payment_due_date),
+        due ? `${due.label} ${formatDueDistance(due.days)}` : "",
+        formatDate(member.data_updated_date)
+      ];
+    })
+  ];
+}
+
+function buildAnnouncementReportRows() {
+  return [
+    ["ลำดับ", "ประเภท", "หัวข้อ", "รายละเอียด", "รูปภาพ", "สถานะ", "ลำดับแสดงผล", "วันที่อัปเดท"],
+    ...state.announcements.map((item, index) => [
+      index + 1,
+      contentTypeLabel(item.content_type),
+      item.title,
+      item.detail,
+      item.image_url,
+      item.is_active ? "เปิด" : "ปิด",
+      item.display_order,
+      formatDate(item.data_updated_date)
+    ])
+  ];
+}
+
+function buildServicePlanReportRows() {
+  return [
+    [
+      "ลำดับ",
+      "ชื่อสินค้า/บริการ",
+      "รายละเอียด",
+      "ราคา",
+      "สถานะที่ว่าง",
+      "ว่าง",
+      "ทั้งหมด",
+      "เปิดใช้งาน",
+      "รูปภาพ",
+      "ไอคอน",
+      "รายละเอียดเพิ่มเติม",
+      "ลำดับแสดงผล"
+    ],
+    ...state.servicePlans.map((plan, index) => [
+      index + 1,
+      plan.title,
+      plan.description,
+      plan.price_label,
+      plan.slot_status === "full" ? "เต็ม" : "มีที่ว่าง",
+      plan.available_slots,
+      plan.total_slots,
+      plan.is_active ? "เปิด" : "ปิด",
+      plan.image_url,
+      plan.icon_url,
+      Array.isArray(plan.features) ? plan.features.join(" | ") : "",
+      plan.display_order
+    ])
+  ];
+}
+
+function renderExcelWorksheet(name, rows) {
+  return `
+  <Worksheet ss:Name="${escapeXml(excelWorksheetName(name))}">
+    <Table>
+      ${rows.map((row) => `<Row>${row.map(renderExcelCell).join("")}</Row>`).join("")}
+    </Table>
+  </Worksheet>`;
+}
+
+function renderExcelCell(value) {
+  return `<Cell><Data ss:Type="String">${escapeXml(value ?? "")}</Data></Cell>`;
+}
+
+function excelWorksheetName(name) {
+  return String(name || "Report").replace(/[\\/?*\[\]:]/g, " ").slice(0, 31) || "Report";
+}
+
+function downloadTextFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function escapeXml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 async function reloadAfterSave(message) {
@@ -2182,8 +2612,18 @@ function formatDueDistance(days) {
 }
 
 function renderStatusBadge(status) {
-  if (status === "maintenance") return `<span class="badge warning">ปรับปรุง</span>`;
-  return `<span class="badge success">ใช้งานได้</span>`;
+  const isMaintenance = status === "maintenance";
+  return `
+    <span class="status-badge ${isMaintenance ? "status-maintenance" : "status-active"}">
+      <span class="status-dot" aria-hidden="true"></span>
+      ${escapeHtml(groupStatusLabel(status))}
+    </span>
+  `;
+}
+
+function groupStatusLabel(status) {
+  if (!status) return "-";
+  return status === "maintenance" ? "กำลังปรับปรุง" : "ใช้งานได้";
 }
 
 function renderEmailTypeBadge(emailType) {

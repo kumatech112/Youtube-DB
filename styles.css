@@ -103,6 +103,18 @@ body::before {
   }
 }
 
+@keyframes statusAlertPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.62;
+  }
+}
+
 button,
 input,
 select,
@@ -479,6 +491,10 @@ textarea:focus-visible {
   height: 44px;
 }
 
+.status-select {
+  font-weight: 800;
+}
+
 .group-form .field-hint {
   min-height: 18px;
 }
@@ -522,6 +538,49 @@ textarea:focus-visible {
 
 .field input[type="number"] {
   max-width: 120px;
+}
+
+.date-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 8px;
+  width: min(100%, 320px);
+}
+
+.date-control .date-display-input {
+  min-width: 0;
+}
+
+.date-control .date-native-input {
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  padding: 0;
+  color: transparent;
+  caret-color: transparent;
+  text-align: center;
+  cursor: pointer;
+}
+
+.date-control .date-native-input::-webkit-datetime-edit {
+  display: none;
+}
+
+.date-control .date-native-input::-webkit-calendar-picker-indicator {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0.86;
+}
+
+.searchable-group-control {
+  display: grid;
+  gap: 6px;
+}
+
+.searchable-group-control input[list] {
+  min-width: 0;
 }
 
 .field textarea {
@@ -730,6 +789,44 @@ code {
 .badge.danger {
   background: #ffe8ee;
   color: var(--danger);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 6px 14px rgba(103, 20, 49, 0.08);
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.88);
+}
+
+.status-active {
+  border-color: #9ddfc8;
+  background: #e7f7f1;
+  color: var(--success);
+}
+
+.status-maintenance {
+  border-color: #f2bd62;
+  background: #fff0d6;
+  color: #8a4f00;
+}
+
+.status-maintenance .status-dot {
+  animation: statusAlertPulse 1.25s ease-in-out infinite;
 }
 
 .badge.due-normal {
