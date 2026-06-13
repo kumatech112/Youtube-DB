@@ -21,6 +21,10 @@ const state = {
   homeLoaded: false,
   groups: [],
   members: [],
+  customers: [],
+  customerServices: [],
+  paymentSlips: [],
+  auditLogs: [],
   announcements: [],
   servicePlans: [],
   siteSettings: null,
@@ -29,9 +33,12 @@ const state = {
   portalAccessCode: null,
   selectedGroupId: null,
   adminSelectedGroupId: null,
+  selectedCustomerId: null,
   memberSearchQuery: "",
   memberGroupFilter: "",
-  memberPage: 1
+  memberPage: 1,
+  customerSearchQuery: "",
+  paymentSlipFilter: "pending_review"
 };
 
 document.addEventListener("click", handleClick);
@@ -172,10 +179,14 @@ async function renderAdmin() {
 
   const content = {
     dashboard: renderDashboard(),
-    groups: renderGroupsAdmin(),
-    members: renderMembersAdmin(),
+    customers: renderCustomersAdmin(),
+    services: renderCustomerServicesAdmin(),
+    slips: renderPaymentSlipsAdmin(),
+    history: renderCustomerHistoryAdmin(),
+    promo: renderPromoAdmin(),
     announcements: renderAnnouncementsAdmin(),
-    promo: renderPromoAdmin()
+    groups: renderGroupsAdmin(),
+    members: renderMembersAdmin()
   }[state.adminTab];
 
   app.innerHTML = renderAdminShell(content);
@@ -211,10 +222,14 @@ function renderLogin() {
 function renderAdminShell(content) {
   const tabs = [
     ["dashboard", "ภาพรวม"],
-    ["groups", "กลุ่ม"],
-    ["members", "สมาชิก"],
+    ["customers", "ลูกค้า"],
+    ["services", "บริการลูกค้า"],
+    ["slips", "สลิป/การชำระเงิน"],
+    ["history", "ประวัติลูกค้า"],
+    ["promo", "หน้าโปรโมต"],
     ["announcements", "ประกาศ/โปรโมชั่น"],
-    ["promo", "หน้าโปรโมต"]
+    ["groups", "Legacy กลุ่ม"],
+    ["members", "Legacy สมาชิก"]
   ];
 
   return `
@@ -248,25 +263,62 @@ function renderAdminShell(content) {
 }
 
 function renderDashboard() {
-  const activeGroups = state.groups.filter((group) => group.status === "active").length;
+  const activeCustomers = state.customers.filter((customer) => customer.status === "active").length;
+  const activeServices = state.customerServices.filter((service) => service.status === "active").length;
+  const pendingSlips = state.paymentSlips.filter((slip) => slip.status === "pending_review").length;
+  const monthRevenue = getApprovedRevenueForCurrentMonth();
+  const revenueByService = getApprovedRevenueByService();
+  const expiringServices = getExpiringCustomerServices();
   const outstandingMembers = getOutstandingMembers();
   const paymentWatchMembers = getPaymentWatchMembers();
 
   return `
     <section class="section-block">
       <div class="grid stats-grid">
-        ${renderStat("กลุ่มทั้งหมด", state.groups.length)}
-        ${renderStat("กลุ่มใช้งานได้", activeGroups)}
-        ${renderStat("สมาชิกทั้งหมด", state.members.length)}
-        ${renderStat("ค้างชำระทั้งหมด", outstandingMembers.length)}
+        ${renderStat("ลูกค้าทั้งหมด", state.customers.length)}
+        ${renderStat("ลูกค้าใช้งานอยู่", activeCustomers)}
+        ${renderStat("บริการใช้งานอยู่", activeServices)}
+        ${renderStat("สลิปรอตรวจ", pendingSlips)}
+        ${renderStat("รายรับเดือนนี้", formatCurrency(monthRevenue))}
+        ${renderStat("บริการใกล้หมดอายุ", expiringServices.length)}
       </div>
     </section>
 
     <section class="section-block">
       <div class="section-header">
         <div>
-          <h2>ค้างชำระและใกล้ถึงวันชำระ</h2>
-          <p>แสดงรายการที่ครบกำหนดแล้ว หรือครบกำหนดภายใน 7 วัน กดชำระแล้วเพื่อเลื่อนวันชำระไปอีก 1 เดือน</p>
+          <h2>สลิปรอตรวจล่าสุด</h2>
+          <p>รายการที่ลูกค้าส่งเข้ามาเพื่อให้แอดมินอนุมัติหรือปฏิเสธ</p>
+        </div>
+      </div>
+      ${pendingSlips ? renderPaymentSlipsTable(getSortedPaymentSlips().filter((slip) => slip.status === "pending_review").slice(0, 8), { review: true }) : `<div class="empty-state"><p>ยังไม่มีสลิปรอตรวจ</p></div>`}
+    </section>
+
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>รายรับแยกตามบริการ</h2>
+          <p>รวมจากสลิปที่อนุมัติแล้วทั้งหมด</p>
+        </div>
+      </div>
+      ${renderRevenueByServiceTable(revenueByService)}
+    </section>
+
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>บริการใกล้หมดอายุ</h2>
+          <p>บริการที่หมดอายุแล้วหรือจะหมดอายุภายใน 7 วัน</p>
+        </div>
+      </div>
+      ${expiringServices.length ? renderCustomerServicesTable(expiringServices, { compact: true }) : `<div class="empty-state"><p>ยังไม่มีบริการใกล้หมดอายุ</p></div>`}
+    </section>
+
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>Legacy: ค้างชำระและใกล้ถึงวันชำระ</h2>
+          <p>ข้อมูลเดิมจากตารางสมาชิก เก็บไว้เป็นข้อมูลอ้างอิงระหว่างย้ายระบบ</p>
         </div>
       </div>
       ${
@@ -820,6 +872,136 @@ function getFilteredMembers(members) {
   });
 }
 
+function getFilteredCustomers() {
+  const search = normalizeSearchText(state.customerSearchQuery);
+  const customers = [...state.customers].sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "th"));
+  if (!search) return customers;
+
+  return customers.filter((customer) => {
+    const searchableText = normalizeSearchText([
+      customer.display_name,
+      customer.access_code,
+      customer.status,
+      customer.admin_note
+    ].join(" "));
+    return searchableText.includes(search);
+  });
+}
+
+function applyCustomerFilter(form) {
+  const formData = new FormData(form);
+  state.customerSearchQuery = clean(formData.get("customer_search"));
+  void render();
+}
+
+function getSortedCustomerServices() {
+  return [...state.customerServices].sort((a, b) => {
+    const customerCompare = String(getCustomerById(a.customer_id)?.display_name || "").localeCompare(
+      String(getCustomerById(b.customer_id)?.display_name || ""),
+      "th"
+    );
+    if (customerCompare !== 0) return customerCompare;
+    return String(a.expires_on || "9999-12-31").localeCompare(String(b.expires_on || "9999-12-31"));
+  });
+}
+
+function getSortedPaymentSlips() {
+  return [...state.paymentSlips].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+}
+
+function getFilteredPaymentSlips() {
+  const slips = getSortedPaymentSlips();
+  if (state.paymentSlipFilter === "all") return slips;
+  return slips.filter((slip) => slip.status === state.paymentSlipFilter);
+}
+
+function getCustomerById(customerId) {
+  return state.customers.find((customer) => String(customer.id) === String(customerId)) || null;
+}
+
+function getServicePlanById(planId) {
+  return state.servicePlans.find((plan) => String(plan.id) === String(planId)) || null;
+}
+
+function getExpiringCustomerServices() {
+  const today = parseDateInput(todayInput());
+  const limit = new Date(today);
+  limit.setDate(limit.getDate() + 7);
+
+  return getSortedCustomerServices().filter((service) => {
+    const expires = parseDateInput(service.expires_on);
+    if (!expires) return false;
+    return service.status !== "cancelled" && expires <= limit;
+  });
+}
+
+function getApprovedRevenueForCurrentMonth() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  return state.paymentSlips
+    .filter((slip) => {
+      if (slip.status !== "approved") return false;
+      const paidAt = new Date(slip.paid_at);
+      return paidAt.getFullYear() === year && paidAt.getMonth() === month;
+    })
+    .reduce((total, slip) => total + (Number(slip.amount) || 0), 0);
+}
+
+function getApprovedRevenueByService() {
+  const summary = new Map();
+  state.paymentSlips
+    .filter((slip) => slip.status === "approved")
+    .forEach((slip) => {
+      const plan = slip.service_plan || getServicePlanById(slip.service_plan_id);
+      const key = slip.service_plan_id || "legacy";
+      const current = summary.get(key) || {
+        serviceTitle: plan?.title || "บริการเดิม",
+        count: 0,
+        amount: 0
+      };
+      current.count += 1;
+      current.amount += Number(slip.amount) || 0;
+      summary.set(key, current);
+    });
+
+  return [...summary.values()].sort((a, b) => b.amount - a.amount);
+}
+
+function renderRevenueByServiceTable(rows) {
+  if (!rows.length) {
+    return `<div class="empty-state"><p>ยังไม่มีรายรับจากสลิปที่อนุมัติ</p></div>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>บริการ</th>
+            <th>จำนวนสลิปอนุมัติ</th>
+            <th>รายรับ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .map(
+              (row) => `
+                <tr>
+                  <td><strong>${escapeHtml(row.serviceTitle)}</strong></td>
+                  <td>${row.count}</td>
+                  <td>${formatCurrency(row.amount)}</td>
+                </tr>
+              `
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function normalizeSearchText(value) {
   return String(value ?? "")
     .normalize("NFC")
@@ -982,6 +1164,434 @@ function renderDateField(name, isoValue, label) {
         data-date-value
         data-date-field="${attr(name)}"
       />
+    </div>
+  `;
+}
+
+function renderCustomersAdmin() {
+  const record = getEditingRecord("customer", state.customers);
+  const customers = getFilteredCustomers();
+
+  return `
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>${record ? "แก้ไขลูกค้า" : "เพิ่มลูกค้า"}</h2>
+          <p>ลูกค้าเป็นข้อมูลหลักของระบบใหม่ ลูกค้าหนึ่งคนมีหลายบริการและหลายประวัติสลิปได้</p>
+        </div>
+      </div>
+      <form class="form-grid commercial-form" data-form="customer">
+        <label class="field">
+          <span>ชื่อลูกค้า</span>
+          <input name="display_name" value="${attr(record?.display_name)}" required />
+        </label>
+        <label class="field">
+          <span>รหัสลูกค้า</span>
+          <input name="access_code" value="${attr(record?.access_code)}" required />
+        </label>
+        <label class="field">
+          <span>สถานะ</span>
+          <select name="status">
+            ${option("active", "ใช้งานอยู่", record?.status)}
+            ${option("inactive", "ปิดใช้งาน", record?.status)}
+          </select>
+        </label>
+        <label class="check-row">
+          <input name="needs_access_code_review" type="checkbox" ${record?.needs_access_code_review ? "checked" : ""} />
+          <span>ต้องตรวจรหัสซ้ำ</span>
+        </label>
+        <label class="field full">
+          <span>หมายเหตุหลังบ้าน</span>
+          <textarea name="admin_note">${escapeHtml(record?.admin_note || "")}</textarea>
+        </label>
+        <div class="toolbar full">
+          <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มลูกค้า"}</button>
+          ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
+        </div>
+      </form>
+      <form class="form-grid member-filter-panel" data-form="customer-filter">
+        <label class="field full">
+          <span>ค้นหาลูกค้า</span>
+          <input name="customer_search" value="${attr(state.customerSearchQuery)}" placeholder="ชื่อ รหัสลูกค้า หรือหมายเหตุ" />
+        </label>
+      </form>
+      ${renderCustomersTable(customers)}
+    </section>
+  `;
+}
+
+function renderCustomersTable(customers) {
+  if (!customers.length) {
+    return `<div class="empty-state"><p>ยังไม่มีลูกค้า</p></div>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ลูกค้า</th>
+            <th>รหัส</th>
+            <th>สถานะ</th>
+            <th>บริการ</th>
+            <th>สลิป</th>
+            <th>หมายเหตุ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${customers
+            .map((customer) => {
+              const serviceCount = state.customerServices.filter((item) => String(item.customer_id) === String(customer.id)).length;
+              const slipCount = state.paymentSlips.filter((item) => String(item.customer_id) === String(customer.id)).length;
+              return `
+                <tr>
+                  <td>
+                    <strong>${escapeHtml(customer.display_name)}</strong>
+                    ${customer.needs_access_code_review ? `<div><span class="badge warning">ตรวจรหัสซ้ำ</span></div>` : ""}
+                  </td>
+                  <td><code>${escapeHtml(customer.access_code || "-")}</code></td>
+                  <td>${renderCustomerStatusBadge(customer.status)}</td>
+                  <td>${serviceCount}</td>
+                  <td>${slipCount}</td>
+                  <td>${escapeHtml(customer.admin_note || "-")}</td>
+                  <td class="actions">
+                    <button class="ghost-button" type="button" data-action="view-customer-history" data-id="${attr(customer.id)}">ประวัติ</button>
+                    <button class="ghost-button" type="button" data-action="edit-customer" data-id="${attr(customer.id)}">แก้ไข</button>
+                    <button class="danger-button" type="button" data-action="delete-customer" data-id="${attr(customer.id)}">ลบ</button>
+                  </td>
+                </tr>
+              `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderCustomerServicesAdmin() {
+  const record = getEditingRecord("customerService", state.customerServices);
+
+  return `
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>${record ? "แก้ไขบริการลูกค้า" : "เพิ่มบริการให้ลูกค้า"}</h2>
+          <p>ใช้กำหนดว่าลูกค้าคนหนึ่งถือบริการอะไรอยู่ และหมดอายุเมื่อไหร่</p>
+        </div>
+      </div>
+      <form class="form-grid commercial-form" data-form="customer-service">
+        <label class="field">
+          <span>ลูกค้า</span>
+          <select name="customer_id" required>
+            <option value="">เลือกลูกค้า</option>
+            ${state.customers.map((customer) => option(customer.id, customer.display_name, record?.customer_id)).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>บริการ</span>
+          <select name="service_plan_id">
+            <option value="">บริการเดิม/ไม่ระบุ</option>
+            ${state.servicePlans.map((plan) => option(plan.id, plan.title, record?.service_plan_id)).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>สถานะบริการ</span>
+          <select name="status">
+            ${option("active", "ใช้งานอยู่", record?.status)}
+            ${option("pending_payment", "รอชำระ", record?.status)}
+            ${option("expired", "หมดอายุ", record?.status)}
+            ${option("cancelled", "ยกเลิก", record?.status)}
+          </select>
+        </label>
+        <label class="field">
+          <span>วันเริ่มต้น</span>
+          ${renderDateField("started_on", record?.started_on, "วันเริ่มต้น")}
+        </label>
+        <label class="field">
+          <span>วันหมดอายุ</span>
+          ${renderDateField("expires_on", record?.expires_on, "วันหมดอายุ")}
+        </label>
+        <label class="field full">
+          <span>หมายเหตุบริการ</span>
+          <textarea name="admin_note">${escapeHtml(record?.admin_note || "")}</textarea>
+        </label>
+        <div class="toolbar full">
+          <button class="primary-button" type="submit">${record ? "บันทึกการแก้ไข" : "เพิ่มบริการลูกค้า"}</button>
+          ${record ? `<button class="ghost-button" type="button" data-action="cancel-edit">ยกเลิก</button>` : ""}
+        </div>
+      </form>
+      ${renderCustomerServicesTable(getSortedCustomerServices())}
+    </section>
+  `;
+}
+
+function renderCustomerServicesTable(services, options = {}) {
+  if (!services.length) {
+    return `<div class="empty-state"><p>ยังไม่มีบริการลูกค้า</p></div>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ลูกค้า</th>
+            <th>บริการ</th>
+            <th>สถานะ</th>
+            <th>วันหมดอายุ</th>
+            <th>หมายเหตุ</th>
+            ${options.compact ? "" : "<th>จัดการ</th>"}
+          </tr>
+        </thead>
+        <tbody>
+          ${services
+            .map((service) => {
+              const customer = service.customer || getCustomerById(service.customer_id);
+              const plan = service.service_plan || getServicePlanById(service.service_plan_id);
+              const due = getDueInfo(service.expires_on);
+              return `
+                <tr>
+                  <td><strong>${escapeHtml(customer?.display_name || "-")}</strong></td>
+                  <td>${escapeHtml(plan?.title || "บริการเดิม")}</td>
+                  <td>${renderServiceStatusBadge(service.status)}</td>
+                  <td>
+                    <div class="due-table-cell">
+                      <strong>${formatDate(service.expires_on)}</strong>
+                      ${due ? renderDueBadge(due) : ""}
+                    </div>
+                  </td>
+                  <td>${escapeHtml(service.admin_note || "-")}</td>
+                  ${
+                    options.compact
+                      ? ""
+                      : `<td class="actions">
+                          <button class="ghost-button" type="button" data-action="edit-customer-service" data-id="${attr(service.id)}">แก้ไข</button>
+                          <button class="danger-button" type="button" data-action="delete-customer-service" data-id="${attr(service.id)}">ลบ</button>
+                        </td>`
+                  }
+                </tr>
+              `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderPaymentSlipsAdmin() {
+  const slips = getFilteredPaymentSlips();
+
+  return `
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>สลิปและการชำระเงิน</h2>
+          <p>ตรวจสลิปที่ลูกค้าส่งมา อนุมัติแล้วระบบจะต่ออายุบริการตามที่แอดมินเลือก</p>
+        </div>
+      </div>
+      <form class="form-grid member-filter-panel" data-form="payment-slip-filter">
+        <label class="field">
+          <span>สถานะสลิป</span>
+          <select name="payment_slip_filter">
+            ${option("pending_review", "รอตรวจสอบ", state.paymentSlipFilter)}
+            ${option("approved", "อนุมัติแล้ว", state.paymentSlipFilter)}
+            ${option("rejected", "ปฏิเสธ", state.paymentSlipFilter)}
+            ${option("needs_resubmit", "ขอส่งใหม่", state.paymentSlipFilter)}
+            ${option("all", "ทั้งหมด", state.paymentSlipFilter)}
+          </select>
+        </label>
+      </form>
+      ${renderPaymentSlipsTable(slips, { review: true })}
+    </section>
+  `;
+}
+
+function renderPaymentSlipsTable(slips, options = {}) {
+  if (!slips.length) {
+    return `<div class="empty-state"><p>ยังไม่มีสลิปในสถานะนี้</p></div>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table class="payment-slip-table">
+        <thead>
+          <tr>
+            <th>ลูกค้า</th>
+            <th>บริการ</th>
+            <th>ยอด/วันที่โอน</th>
+            <th>สลิป</th>
+            <th>สถานะ</th>
+            ${options.compact ? "" : "<th>ตรวจสอบ</th>"}
+          </tr>
+        </thead>
+        <tbody>
+          ${slips
+            .map((slip) => {
+              const customer = slip.customer || getCustomerById(slip.customer_id);
+              const plan = slip.service_plan || getServicePlanById(slip.service_plan_id);
+              return `
+                <tr>
+                  <td>
+                    <strong>${escapeHtml(customer?.display_name || "-")}</strong>
+                    <div class="muted">${escapeHtml(customer?.access_code || "")}</div>
+                  </td>
+                  <td>${escapeHtml(plan?.title || "บริการเดิม")}</td>
+                  <td>
+                    <strong>${formatCurrency(slip.amount)}</strong>
+                    <div class="muted">${formatDateTime(slip.paid_at)}</div>
+                  </td>
+                  <td>
+                    ${
+                      slip.slip_signed_url
+                        ? `<button class="ghost-button" type="button" data-action="open-image" data-src="${attr(slip.slip_signed_url)}" data-title="สลิป ${attr(customer?.display_name || "")}">ดูสลิป</button>`
+                        : `<span class="badge warning">ไม่มีรูป</span>`
+                    }
+                  </td>
+                  <td>
+                    ${renderSlipStatusBadge(slip.status)}
+                    ${slip.admin_note ? `<div class="muted">${escapeHtml(slip.admin_note)}</div>` : ""}
+                  </td>
+                  ${options.compact ? "" : `<td>${renderSlipReviewForm(slip)}</td>`}
+                </tr>
+              `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSlipReviewForm(slip) {
+  if (slip.status !== "pending_review") {
+    return `
+      <div class="review-summary">
+        <span class="muted">ตรวจแล้ว</span>
+        <strong>${formatDateTime(slip.reviewed_at)}</strong>
+      </div>
+    `;
+  }
+
+  return `
+    <form class="slip-review-form" data-form="slip-review">
+      <input type="hidden" name="payment_slip_id" value="${attr(slip.id)}" />
+      <label class="field">
+        <span>ผลตรวจ</span>
+        <select name="review_status">
+          ${option("approved", "อนุมัติ", "approved")}
+          ${option("rejected", "ปฏิเสธ", "")}
+          ${option("needs_resubmit", "ขอส่งใหม่", "")}
+        </select>
+      </label>
+      <label class="field">
+        <span>วิธีต่ออายุ</span>
+        <select name="approval_mode">
+          ${option("months", "ต่ออายุเป็นเดือน", "months")}
+          ${option("date", "กำหนดวันหมดอายุเอง", "")}
+        </select>
+      </label>
+      <label class="field">
+        <span>จำนวนเดือน</span>
+        <input name="renewal_months" type="number" min="1" value="1" />
+      </label>
+      <label class="field">
+        <span>วันหมดอายุใหม่</span>
+        ${renderDateField("new_expires_on", "", "วันหมดอายุใหม่")}
+      </label>
+      <label class="field">
+        <span>หมายเหตุ</span>
+        <textarea name="admin_note" placeholder="หมายเหตุถึงลูกค้า/หลังบ้าน"></textarea>
+      </label>
+      <button class="primary-button" type="submit">บันทึกผลตรวจ</button>
+    </form>
+  `;
+}
+
+function renderCustomerHistoryAdmin() {
+  const selectedCustomer =
+    state.customers.find((customer) => String(customer.id) === String(state.selectedCustomerId)) || state.customers[0] || null;
+  const services = selectedCustomer
+    ? state.customerServices.filter((service) => String(service.customer_id) === String(selectedCustomer.id))
+    : [];
+  const slips = selectedCustomer
+    ? getSortedPaymentSlips().filter((slip) => String(slip.customer_id) === String(selectedCustomer.id))
+    : [];
+  const logs = selectedCustomer
+    ? state.auditLogs.filter((log) => String(log.customer_id) === String(selectedCustomer.id))
+    : [];
+
+  return `
+    <section class="section-block">
+      <div class="section-header">
+        <div>
+          <h2>ประวัติลูกค้า</h2>
+          <p>รวมบริการ สลิป และ audit log ของลูกค้าแต่ละคน</p>
+        </div>
+      </div>
+      <form class="form-grid member-filter-panel" data-form="history-picker">
+        <label class="field full">
+          <span>เลือกลูกค้า</span>
+          <select name="selected_customer_id">
+            ${state.customers.map((customer) => option(customer.id, customer.display_name, selectedCustomer?.id)).join("")}
+          </select>
+        </label>
+      </form>
+      ${
+        selectedCustomer
+          ? `
+            <div class="customer-history-head">
+              <div>
+                <span class="eyebrow">Customer</span>
+                <h3>${escapeHtml(selectedCustomer.display_name)}</h3>
+                <p>รหัสลูกค้า: ${escapeHtml(selectedCustomer.access_code)}</p>
+              </div>
+              ${renderCustomerStatusBadge(selectedCustomer.status)}
+            </div>
+            <h3 class="subsection-title">บริการ</h3>
+            ${renderCustomerServicesTable(services, { compact: true })}
+            <h3 class="subsection-title">ประวัติสลิป</h3>
+            ${renderPaymentSlipsTable(slips, { compact: true })}
+            <h3 class="subsection-title">Audit Log</h3>
+            ${renderAuditLogTable(logs)}
+          `
+          : `<div class="empty-state"><p>ยังไม่มีลูกค้า</p></div>`
+      }
+    </section>
+  `;
+}
+
+function renderAuditLogTable(logs) {
+  if (!logs.length) return `<div class="empty-state"><p>ยังไม่มีประวัติการทำรายการ</p></div>`;
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>เวลา</th>
+            <th>Action</th>
+            <th>Entity</th>
+            <th>หมายเหตุ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${logs
+            .map(
+              (log) => `
+                <tr>
+                  <td>${formatDateTime(log.created_at)}</td>
+                  <td>${escapeHtml(log.action)}</td>
+                  <td>${escapeHtml(log.entity_type)}</td>
+                  <td>${escapeHtml(log.note || "-")}</td>
+                </tr>
+              `
+            )
+            .join("")}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -1251,8 +1861,8 @@ function renderCustomer() {
         <div class="customer-login-card">
           <div class="customer-login-copy">
             <span class="eyebrow">FKP Member</span>
-            <h1>ตรวจสอบข้อมูลกลุ่ม</h1>
-            <p>ข้อมูลกลุ่มและวันชำระล่าสุด</p>
+            <h1>ตรวจสอบบริการและแจ้งชำระเงิน</h1>
+            <p>ดูบริการของคุณ ส่งสลิป และติดตามสถานะการตรวจสอบ</p>
           </div>
           <form class="form-grid" data-form="customer-code">
             <label class="field full">
@@ -1274,28 +1884,197 @@ function renderCustomer() {
     return;
   }
 
-  const groups = state.portal.groups || [];
-  const selectedGroup = groups.find((group) => group.id === state.selectedGroupId) || null;
+  const services = state.portal.services || [];
+  const slips = state.portal.payment_slips || [];
 
   app.innerHTML = `
     <div class="customer-page-header">
       <div>
         <span class="eyebrow">ข้อมูลของคุณ</span>
         <h1>สวัสดี ${escapeHtml(state.portal.customer.display_name)}</h1>
-        <p>${selectedGroup ? "รายละเอียดข้อมูลของคุณในกลุ่มนี้" : "กดการ์ดกลุ่มหรือไอคอนตาเพื่อดูข้อมูลของคุณ"}</p>
+        <p>ตรวจสอบบริการที่ใช้อยู่และส่งสลิปหลังจากโอนเงินแล้ว</p>
       </div>
       <div class="toolbar">
-        ${selectedGroup ? `<button class="ghost-button" type="button" data-action="back-groups">กลับไปหน้ากลุ่ม</button>` : ""}
         <button class="ghost-button" type="button" data-action="refresh-customer">รีเฟรชข้อมูล</button>
         <button class="danger-button" type="button" data-action="clear-customer">ออกจากหน้านี้</button>
       </div>
     </div>
 
-    ${
-      selectedGroup
-        ? renderCustomerGroupDetail(selectedGroup)
-        : renderCustomerGroupCards(groups)
-    }
+    ${renderCustomerCommercialSummary(services, slips)}
+    ${renderCustomerServices(services)}
+    ${renderCustomerSlipSubmissionForm()}
+    ${renderCustomerSlipHistory(slips)}
+    ${renderCustomerAnnouncements(state.portal.announcements || [])}
+  `;
+}
+
+function renderCustomerCommercialSummary(services, slips) {
+  const activeServices = services.filter((service) => service.status === "active").length;
+  const pendingSlips = slips.filter((slip) => slip.status === "pending_review").length;
+  const nextDue = services
+    .map((service) => getDueInfo(service.expires_on))
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+
+  return `
+    <section class="customer-summary">
+      <div class="summary-card">
+        <span>บริการทั้งหมด</span>
+        <strong>${services.length}</strong>
+      </div>
+      <div class="summary-card">
+        <span>บริการใช้งานอยู่</span>
+        <strong>${activeServices}</strong>
+      </div>
+      <div class="summary-card">
+        <span>สลิปรอตรวจ</span>
+        <strong>${pendingSlips}</strong>
+      </div>
+      <div class="summary-card wide">
+        <span>ครบกำหนดถัดไป</span>
+        <strong>${nextDue ? formatDate(nextDue.date) : "-"}</strong>
+        ${nextDue ? renderDueBadge(nextDue) : `<span class="badge">ยังไม่มีวันหมดอายุ</span>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderCustomerServices(services) {
+  if (!services.length) {
+    return `<section class="empty-state"><h1>ยังไม่มีบริการที่ผูกกับรหัสนี้</h1><p>กรุณาติดต่อร้านเพื่อเปิดบริการก่อนส่งสลิป</p></section>`;
+  }
+
+  return `
+    <section class="customer-section">
+      <div class="section-header">
+        <div>
+          <h2>บริการของคุณ</h2>
+          <p>เลือกบริการจากรายการนี้เมื่อส่งสลิปต่ออายุ</p>
+        </div>
+      </div>
+      <div class="customer-private-card-grid">
+        ${services
+          .map((service) => {
+            const due = getDueInfo(service.expires_on);
+            return `
+              <article class="customer-private-member-card">
+                <div class="customer-private-card-head">
+                  <div>
+                    <span class="muted">บริการ</span>
+                    <h3>${escapeHtml(service.service_title || "บริการเดิม")}</h3>
+                  </div>
+                  ${renderServiceStatusBadge(service.status)}
+                </div>
+                <div class="customer-private-payment-box">
+                  <span>วันหมดอายุ / วันครบกำหนด</span>
+                  <strong>${formatDate(service.expires_on)}</strong>
+                  ${due ? renderDueBadge(due) : `<span class="badge">ยังไม่มีวันหมดอายุ</span>`}
+                </div>
+                <div class="member-meta-grid customer-private-meta-grid">
+                  <div>
+                    <span>ราคาอ้างอิง</span>
+                    <strong>${escapeHtml(service.price_label || "-")}</strong>
+                  </div>
+                  <div>
+                    <span>วันเริ่มต้น</span>
+                    <strong>${formatDate(service.started_on)}</strong>
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderCustomerSlipSubmissionForm() {
+  const services = state.portal.services || [];
+  const plans = state.portal.available_service_plans || [];
+
+  return `
+    <section class="customer-section">
+      <div class="section-header">
+        <div>
+          <h2>แจ้งชำระเงินด้วยสลิป</h2>
+          <p>หลังตกลงยอดกับร้านแล้ว เลือกบริการ ใส่ยอด และอัปโหลดสลิปเพื่อให้แอดมินตรวจ</p>
+        </div>
+      </div>
+      <form class="form-grid customer-slip-form" data-form="customer-slip">
+        <label class="field">
+          <span>บริการที่ชำระ</span>
+          <select name="service_selection" required>
+            <option value="">เลือกบริการ</option>
+            ${
+              services.length
+                ? `<optgroup label="บริการที่ใช้อยู่">
+                    ${services.map((service) => `<option value="service:${attr(service.id)}">${escapeHtml(service.service_title || "บริการเดิม")} - หมดอายุ ${formatDate(service.expires_on)}</option>`).join("")}
+                  </optgroup>`
+                : ""
+            }
+            ${
+              plans.length
+                ? `<optgroup label="บริการใหม่ / โปรโมชัน">
+                    ${plans.map((plan) => `<option value="plan:${attr(plan.id)}">${escapeHtml(plan.title)}${plan.price_label ? ` - ${escapeHtml(plan.price_label)}` : ""}</option>`).join("")}
+                  </optgroup>`
+                : ""
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span>ยอดเงินที่โอน</span>
+          <input name="amount" type="number" min="1" step="0.01" required />
+        </label>
+        <label class="field">
+          <span>วันที่โอน</span>
+          ${renderDateField("paid_at", todayInput(), "วันที่โอน")}
+        </label>
+        <label class="field">
+          <span>รูปสลิป</span>
+          <input name="slip_file" type="file" accept="image/*,.pdf" required />
+        </label>
+        <label class="field full">
+          <span>หมายเหตุถึงร้าน</span>
+          <textarea name="customer_note" placeholder="เช่น ต่อ YouTube 1 เดือน / โปรที่คุยไว้"></textarea>
+        </label>
+        <div class="toolbar full">
+          <button class="primary-button" type="submit">ส่งสลิปให้แอดมินตรวจ</button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
+function renderCustomerSlipHistory(slips) {
+  if (!slips.length) return "";
+
+  return `
+    <section class="customer-section">
+      <div class="section-header">
+        <div>
+          <h2>ประวัติสลิปของคุณ</h2>
+        </div>
+      </div>
+      <div class="customer-own-payment-list">
+        ${slips
+          .map(
+            (slip) => `
+              <article class="customer-own-payment-item">
+                <div>
+                  <strong>${escapeHtml(slip.service_title || "บริการเดิม")}</strong>
+                  <span class="muted">${formatCurrency(slip.amount)} · โอน ${formatDateTime(slip.paid_at)}</span>
+                </div>
+                <div>
+                  ${renderSlipStatusBadge(slip.status)}
+                  ${slip.admin_note ? `<div class="muted">${escapeHtml(slip.admin_note)}</div>` : ""}
+                </div>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -1490,9 +2269,33 @@ function renderCustomerPrivateMemberCard(member, group) {
 }
 
 async function loadAdminData() {
-  const [groups, members, announcements, servicePlans, siteSettings] = await Promise.all([
+  const [
+    groups,
+    members,
+    customers,
+    customerServices,
+    paymentSlips,
+    auditLogs,
+    announcements,
+    servicePlans,
+    siteSettings
+  ] = await Promise.all([
     supabase.from("groups").select("*").order("group_name", { ascending: true }),
     supabase.from("members").select("*").order("member_name", { ascending: true }),
+    supabase.from("customers").select("*").order("display_name", { ascending: true }),
+    supabase
+      .from("customer_services")
+      .select("*, customer:customers(*), service_plan:service_plans(*)")
+      .order("expires_on", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("payment_slips")
+      .select("*, customer:customers(*), customer_service:customer_services(*), service_plan:service_plans(*)")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("audit_logs")
+      .select("*, customer:customers(*)")
+      .order("created_at", { ascending: false })
+      .limit(300),
     supabase
       .from("announcements")
       .select("*")
@@ -1506,12 +2309,31 @@ async function loadAdminData() {
     supabase.from("site_settings").select("*").eq("id", 1).maybeSingle()
   ]);
 
-  [groups, members, announcements, servicePlans, siteSettings].forEach((result) => {
-    if (result.error) throw result.error;
+  [
+    groups,
+    members,
+    customers,
+    customerServices,
+    paymentSlips,
+    auditLogs,
+    announcements,
+    servicePlans,
+    siteSettings
+  ].forEach((result) => {
+    if (result.error) {
+      if (String(result.error.message || "").toLowerCase().includes("does not exist")) {
+        throw new Error("ยังไม่ได้รัน supabase/commercial-system.sql ใน Supabase SQL Editor");
+      }
+      throw result.error;
+    }
   });
 
   state.groups = groups.data || [];
   state.members = members.data || [];
+  state.customers = customers.data || [];
+  state.customerServices = customerServices.data || [];
+  state.paymentSlips = await attachPaymentSlipSignedUrls(paymentSlips.data || []);
+  state.auditLogs = auditLogs.data || [];
   state.announcements = announcements.data || [];
   state.servicePlans = servicePlans.data || [];
   state.siteSettings = siteSettings.data || getDefaultSiteSettings();
@@ -1536,9 +2358,14 @@ async function handleSubmit(event) {
   try {
     if (formType === "admin-login") await loginAdmin(form);
     if (formType === "customer-code") await openCustomerPortal(form);
+    if (formType === "customer-slip") await submitCustomerSlip(form);
     if (formType === "member-filter") applyMemberFilter(form);
+    if (formType === "customer-filter") applyCustomerFilter(form);
     if (formType === "group") await saveGroup(form);
     if (formType === "member") await saveMember(form);
+    if (formType === "customer") await saveCustomer(form);
+    if (formType === "customer-service") await saveCustomerService(form);
+    if (formType === "slip-review") await reviewPaymentSlip(form);
     if (formType === "announcement") await saveAnnouncement(form);
     if (formType === "site-settings") await saveSiteSettings(form);
     if (formType === "service-plan") await saveServicePlan(form);
@@ -1566,6 +2393,13 @@ function handleInput(event) {
     updateMemberFilterFromControls(form);
     refreshMemberResults();
   }
+
+  if (target.name === "customer_search") {
+    const form = target.closest("form[data-form='customer-filter']");
+    if (!form) return;
+    state.customerSearchQuery = clean(new FormData(form).get("customer_search"));
+    void render();
+  }
 }
 
 function handleChange(event) {
@@ -1586,6 +2420,16 @@ function handleChange(event) {
     if (!form) return;
     updateMemberFilterFromControls(form);
     refreshMemberResults();
+  }
+
+  if (target.name === "payment_slip_filter") {
+    state.paymentSlipFilter = clean(target.value) || "pending_review";
+    void render();
+  }
+
+  if (target.name === "selected_customer_id") {
+    state.selectedCustomerId = clean(target.value);
+    void render();
   }
 }
 
@@ -1737,6 +2581,10 @@ async function handleClick(event) {
 
     if (action === "edit-group") editRecord("groups", "group", id, "groups");
     if (action === "edit-member") editRecord("members", "member", id, "members");
+    if (action === "edit-customer") editRecord("customers", "customer", id, "customers");
+    if (action === "edit-customer-service") {
+      editRecord("customerServices", "customerService", id, "services");
+    }
     if (action === "edit-announcement") {
       editRecord("announcements", "announcement", id, "announcements");
     }
@@ -1746,6 +2594,10 @@ async function handleClick(event) {
 
     if (action === "delete-group") await deleteRecord("groups", id, "ลบกลุ่มนี้หรือไม่");
     if (action === "delete-member") await deleteRecord("members", id, "ลบสมาชิกนี้หรือไม่");
+    if (action === "delete-customer") await deleteRecord("customers", id, "ลบลูกค้านี้หรือไม่");
+    if (action === "delete-customer-service") {
+      await deleteRecord("customer_services", id, "ลบบริการลูกค้านี้หรือไม่");
+    }
     if (action === "delete-announcement") {
       await deleteRecord("announcements", id, "ลบประกาศ/โปรโมชั่นนี้หรือไม่");
     }
@@ -1755,6 +2607,14 @@ async function handleClick(event) {
 
     if (action === "mark-member-paid") {
       await markMemberPaid(id);
+      return;
+    }
+
+    if (action === "view-customer-history") {
+      state.adminTab = "history";
+      state.selectedCustomerId = id;
+      state.editing = null;
+      await render();
       return;
     }
 
@@ -1893,6 +2753,9 @@ async function openCustomerPortal(form) {
 
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.message || "ไม่พบข้อมูลของรหัสนี้");
+  if (!data.customer) {
+    throw new Error("ยังไม่ได้รัน supabase/commercial-system.sql ใน Supabase SQL Editor");
+  }
 
   state.portal = data;
   state.portalAccessCode = accessCode;
@@ -1911,9 +2774,12 @@ async function refreshCustomerPortal() {
 
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.message || "ไม่พบข้อมูลของรหัสนี้");
+  if (!data.customer) {
+    throw new Error("ยังไม่ได้รัน supabase/commercial-system.sql ใน Supabase SQL Editor");
+  }
 
   state.portal = data;
-  if (state.selectedGroupId && !data.groups?.some((group) => group.id === state.selectedGroupId)) {
+  if (state.selectedGroupId && !data.groups?.some?.((group) => group.id === state.selectedGroupId)) {
     state.selectedGroupId = null;
   }
   showToast("รีเฟรชข้อมูลแล้ว");
@@ -1981,12 +2847,215 @@ async function saveMember(form) {
   await reloadAfterSave("บันทึกสมาชิกแล้ว");
 }
 
+async function saveCustomer(form) {
+  const formData = new FormData(form);
+  const record = getEditingRecord("customer", state.customers);
+  const payload = {
+    display_name: clean(formData.get("display_name")),
+    access_code: clean(formData.get("access_code")),
+    status: clean(formData.get("status")) || "active",
+    admin_note: clean(formData.get("admin_note")) || null,
+    needs_access_code_review: formData.get("needs_access_code_review") === "on"
+  };
+
+  if (!payload.display_name) throw new Error("กรุณาใส่ชื่อลูกค้า");
+  if (!payload.access_code) throw new Error("กรุณาใส่รหัสลูกค้า");
+
+  let savedId = record?.id;
+  if (record) {
+    await checked(supabase.from("customers").update(payload).eq("id", record.id));
+    await createAuditLog("customer_updated", "customer", record.id, record.id, record, payload, "แก้ไขข้อมูลลูกค้า");
+  } else {
+    const result = await checked(supabase.from("customers").insert(payload).select("id").single());
+    savedId = result.data.id;
+    await createAuditLog("customer_created", "customer", savedId, savedId, null, payload, "เพิ่มลูกค้าใหม่");
+  }
+
+  state.selectedCustomerId = savedId;
+  await reloadAfterSave("บันทึกลูกค้าแล้ว");
+}
+
+async function saveCustomerService(form) {
+  const formData = new FormData(form);
+  const record = getEditingRecord("customerService", state.customerServices);
+  const customerId = clean(formData.get("customer_id"));
+  const payload = {
+    customer_id: customerId,
+    service_plan_id: clean(formData.get("service_plan_id")) || null,
+    status: clean(formData.get("status")) || "active",
+    started_on: getOptionalDateFieldValue(form, "started_on", "วันเริ่มต้น"),
+    expires_on: getOptionalDateFieldValue(form, "expires_on", "วันหมดอายุ"),
+    admin_note: clean(formData.get("admin_note")) || null
+  };
+
+  if (!payload.customer_id) throw new Error("กรุณาเลือกลูกค้า");
+
+  let savedId = record?.id;
+  if (record) {
+    await checked(supabase.from("customer_services").update(payload).eq("id", record.id));
+    await createAuditLog("customer_service_updated", "customer_service", record.id, customerId, record, payload, "แก้ไขบริการลูกค้า");
+  } else {
+    const result = await checked(supabase.from("customer_services").insert(payload).select("id").single());
+    savedId = result.data.id;
+    await createAuditLog("customer_service_created", "customer_service", savedId, customerId, null, payload, "เพิ่มบริการลูกค้า");
+  }
+
+  state.selectedCustomerId = customerId;
+  await reloadAfterSave("บันทึกบริการลูกค้าแล้ว");
+}
+
+async function submitCustomerSlip(form) {
+  if (!state.portalAccessCode) throw new Error("ไม่พบรหัสลูกค้า กรุณาเข้าสู่ระบบใหม่");
+
+  const formData = new FormData(form);
+  const selection = clean(formData.get("service_selection"));
+  const amount = numberOrNull(formData.get("amount"));
+  const paidAt = getDateFieldValue(form, "paid_at", "วันที่โอน");
+  const note = clean(formData.get("customer_note"));
+  const file = form.querySelector('input[name="slip_file"]')?.files?.[0];
+
+  if (!selection) throw new Error("กรุณาเลือกบริการที่ชำระ");
+  if (!amount || amount <= 0) throw new Error("กรุณาใส่ยอดเงินที่ถูกต้อง");
+  if (!file) throw new Error("กรุณาแนบรูปสลิป");
+
+  const [selectionType, selectionId] = selection.split(":");
+  const customerServiceId = selectionType === "service" ? selectionId : null;
+  const servicePlanId = selectionType === "plan" ? selectionId : null;
+
+  const { data, error } = await supabase.rpc("create_payment_slip_submission", {
+    p_access_code: state.portalAccessCode,
+    p_customer_service_id: customerServiceId,
+    p_service_plan_id: servicePlanId,
+    p_amount: amount,
+    p_paid_at: paidAt,
+    p_customer_note: note || null,
+    p_file_name: file.name
+  });
+
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.message || "ไม่สามารถสร้างรายการสลิปได้");
+
+  await uploadPaymentSlipFile(data.upload_path, file);
+
+  const finalized = await supabase.rpc("finalize_payment_slip_upload", {
+    p_access_code: state.portalAccessCode,
+    p_payment_slip_id: data.payment_slip_id,
+    p_slip_path: data.upload_path
+  });
+  if (finalized.error) throw finalized.error;
+  if (!finalized.data?.ok) throw new Error(finalized.data?.message || "ไม่สามารถยืนยันไฟล์สลิปได้");
+
+  showToast("ส่งสลิปให้แอดมินตรวจแล้ว");
+  await refreshCustomerPortal();
+}
+
+async function reviewPaymentSlip(form) {
+  const formData = new FormData(form);
+  const slipId = clean(formData.get("payment_slip_id"));
+  const slip = state.paymentSlips.find((item) => String(item.id) === String(slipId));
+  if (!slip) throw new Error("ไม่พบรายการสลิป");
+
+  const reviewStatus = clean(formData.get("review_status")) || "approved";
+  const adminNote = clean(formData.get("admin_note")) || null;
+  const beforeSlip = { ...slip };
+  let linkedServiceId = slip.customer_service_id || null;
+  let newExpiresOn = null;
+
+  if (reviewStatus === "approved") {
+    const mode = clean(formData.get("approval_mode")) || "months";
+    if (mode === "date") {
+      newExpiresOn = getDateFieldValue(form, "new_expires_on", "วันหมดอายุใหม่");
+    } else {
+      const months = Math.max(1, numberOrNull(formData.get("renewal_months")) || 1);
+      const service = linkedServiceId ? state.customerServices.find((item) => String(item.id) === String(linkedServiceId)) : null;
+      const currentExpiry = service?.expires_on;
+      const baseDate =
+        currentExpiry && parseDateInput(currentExpiry) && parseDateInput(currentExpiry) > parseDateInput(todayInput())
+          ? currentExpiry
+          : todayInput();
+      newExpiresOn = addMonthsToDateInput(baseDate, months);
+    }
+
+    if (linkedServiceId) {
+      const currentService = state.customerServices.find((item) => String(item.id) === String(linkedServiceId));
+      await checked(
+        supabase
+          .from("customer_services")
+          .update({
+            status: "active",
+            expires_on: newExpiresOn
+          })
+          .eq("id", linkedServiceId)
+      );
+      await createAuditLog(
+        "customer_service_renewed",
+        "customer_service",
+        linkedServiceId,
+        slip.customer_id,
+        currentService,
+        { expires_on: newExpiresOn, status: "active" },
+        `อนุมัติสลิป ${formatCurrency(slip.amount)}`
+      );
+    } else {
+      const result = await checked(
+        supabase
+          .from("customer_services")
+          .insert({
+            customer_id: slip.customer_id,
+            service_plan_id: slip.service_plan_id,
+            status: "active",
+            started_on: todayInput(),
+            expires_on: newExpiresOn
+          })
+          .select("id")
+          .single()
+      );
+      linkedServiceId = result.data.id;
+      await createAuditLog(
+        "customer_service_created_from_slip",
+        "customer_service",
+        linkedServiceId,
+        slip.customer_id,
+        null,
+        { expires_on: newExpiresOn, service_plan_id: slip.service_plan_id },
+        "สร้างบริการใหม่จากสลิปที่อนุมัติ"
+      );
+    }
+  }
+
+  const payload = {
+    status: reviewStatus,
+    admin_note: adminNote,
+    reviewed_by: state.session?.user?.id || null,
+    reviewed_at: new Date().toISOString(),
+    customer_service_id: linkedServiceId
+  };
+
+  await checked(supabase.from("payment_slips").update(payload).eq("id", slip.id));
+  await createAuditLog(
+    reviewStatus === "approved" ? "payment_slip_approved" : `payment_slip_${reviewStatus}`,
+    "payment_slip",
+    slip.id,
+    slip.customer_id,
+    beforeSlip,
+    { ...payload, new_expires_on: newExpiresOn },
+    adminNote || "ตรวจสลิป"
+  );
+
+  await reloadAfterSave("บันทึกผลตรวจสลิปแล้ว");
+}
+
 function getDateFieldValue(form, fieldName, fieldLabel) {
   const display = form.querySelector(`[data-date-display][data-date-field="${fieldName}"]`);
   const hidden = form.querySelector(`[name="${fieldName}"]`);
   const raw = clean(display?.value || hidden?.value);
   if (!raw) return null;
   return parsePaymentDueDate(raw, fieldLabel);
+}
+
+function getOptionalDateFieldValue(form, fieldName, fieldLabel) {
+  const value = getDateFieldValue(form, fieldName, fieldLabel);
+  return value || null;
 }
 
 async function saveAnnouncement(form) {
@@ -2100,6 +3169,54 @@ async function uploadAsset(file) {
   return data.publicUrl;
 }
 
+async function uploadPaymentSlipFile(path, file) {
+  const { error } = await supabase.storage.from("payment-slips").upload(path, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: file.type || undefined
+  });
+  if (error) {
+    if (String(error.message || "").toLowerCase().includes("bucket")) {
+      throw new Error("ไม่พบ bucket payment-slips ให้รัน supabase/commercial-system.sql ก่อน");
+    }
+    throw error;
+  }
+}
+
+async function attachPaymentSlipSignedUrls(slips) {
+  const rows = [];
+  for (const slip of slips) {
+    if (!slip.slip_path) {
+      rows.push(slip);
+      continue;
+    }
+    const { data, error } = await supabase.storage.from("payment-slips").createSignedUrl(slip.slip_path, 600);
+    rows.push({
+      ...slip,
+      slip_signed_url: error ? null : data?.signedUrl || null
+    });
+  }
+  return rows;
+}
+
+async function createAuditLog(action, entityType, entityId, customerId, beforeData, afterData, note) {
+  const payload = {
+    actor_id: state.session?.user?.id || null,
+    actor_type: state.session ? "admin" : "system",
+    action,
+    entity_type: entityType,
+    entity_id: entityId || null,
+    customer_id: customerId || null,
+    before_data: beforeData || null,
+    after_data: afterData || null,
+    note: note || null
+  };
+  const { error } = await supabase.from("audit_logs").insert(payload);
+  if (error) {
+    console.warn("Audit log failed", error);
+  }
+}
+
 function editRecord(collectionName, type, id, tab) {
   const found = state[collectionName].some((item) => item.id === id);
   if (!found) throw new Error("ไม่พบข้อมูลที่ต้องการแก้ไข");
@@ -2150,6 +3267,9 @@ function exportAdminReport() {
   const hasActiveMemberFilter = Boolean(state.memberSearchQuery || state.memberGroupFilter);
   const worksheets = [
     ["ข้อมูลร้าน", buildSiteSettingsReportRows()],
+    ["ลูกค้า", buildCustomerReportRows()],
+    ["บริการลูกค้า", buildCustomerServiceReportRows()],
+    ["สลิป", buildPaymentSlipReportRows()],
     ["สมาชิกทั้งหมด", buildMemberReportRows(getSortedMembers())],
     ["กลุ่ม", buildGroupReportRows()],
     ["ประกาศ", buildAnnouncementReportRows()],
@@ -2241,6 +3361,61 @@ function buildMemberReportRows(members) {
         formatDate(member.payment_due_date),
         due ? `${due.label} ${formatDueDistance(due.days)}` : "",
         formatDate(member.data_updated_date)
+      ];
+    })
+  ];
+}
+
+function buildCustomerReportRows() {
+  return [
+    ["ลำดับ", "ชื่อลูกค้า", "รหัสลูกค้า", "สถานะ", "ต้องตรวจรหัสซ้ำ", "หมายเหตุ", "สร้างเมื่อ"],
+    ...state.customers.map((customer, index) => [
+      index + 1,
+      customer.display_name,
+      customer.access_code,
+      customer.status === "inactive" ? "ปิดใช้งาน" : "ใช้งานอยู่",
+      customer.needs_access_code_review ? "ใช่" : "ไม่ใช่",
+      customer.admin_note || "",
+      formatDateTime(customer.created_at)
+    ])
+  ];
+}
+
+function buildCustomerServiceReportRows() {
+  return [
+    ["ลำดับ", "ลูกค้า", "บริการ", "สถานะ", "วันเริ่มต้น", "วันหมดอายุ", "หมายเหตุ"],
+    ...getSortedCustomerServices().map((service, index) => {
+      const customer = service.customer || getCustomerById(service.customer_id);
+      const plan = service.service_plan || getServicePlanById(service.service_plan_id);
+      return [
+        index + 1,
+        customer?.display_name || "",
+        plan?.title || "บริการเดิม",
+        service.status,
+        formatDate(service.started_on),
+        formatDate(service.expires_on),
+        service.admin_note || ""
+      ];
+    })
+  ];
+}
+
+function buildPaymentSlipReportRows() {
+  return [
+    ["ลำดับ", "ลูกค้า", "บริการ", "ยอดเงิน", "วันที่โอน", "สถานะ", "หมายเหตุลูกค้า", "หมายเหตุแอดมิน", "ตรวจเมื่อ"],
+    ...getSortedPaymentSlips().map((slip, index) => {
+      const customer = slip.customer || getCustomerById(slip.customer_id);
+      const plan = slip.service_plan || getServicePlanById(slip.service_plan_id);
+      return [
+        index + 1,
+        customer?.display_name || "",
+        plan?.title || "บริการเดิม",
+        slip.amount,
+        formatDateTime(slip.paid_at),
+        slip.status,
+        slip.customer_note || "",
+        slip.admin_note || "",
+        formatDateTime(slip.reviewed_at)
       ];
     })
   ];
@@ -2621,6 +3796,33 @@ function renderStatusBadge(status) {
   `;
 }
 
+function renderCustomerStatusBadge(status) {
+  const isActive = status !== "inactive";
+  return `<span class="badge ${isActive ? "success" : "danger"}">${isActive ? "ใช้งานอยู่" : "ปิดใช้งาน"}</span>`;
+}
+
+function renderServiceStatusBadge(status) {
+  const map = {
+    active: ["success", "ใช้งานอยู่"],
+    pending_payment: ["warning", "รอชำระ"],
+    expired: ["danger", "หมดอายุ"],
+    cancelled: ["danger", "ยกเลิก"]
+  };
+  const [className, label] = map[status] || ["warning", status || "-"];
+  return `<span class="badge ${className}">${escapeHtml(label)}</span>`;
+}
+
+function renderSlipStatusBadge(status) {
+  const map = {
+    pending_review: ["warning", "รอตรวจสอบ"],
+    approved: ["success", "อนุมัติแล้ว"],
+    rejected: ["danger", "ปฏิเสธ"],
+    needs_resubmit: ["warning", "ขอส่งใหม่"]
+  };
+  const [className, label] = map[status] || ["warning", status || "-"];
+  return `<span class="badge ${className}">${escapeHtml(label)}</span>`;
+}
+
 function groupStatusLabel(status) {
   if (!status) return "-";
   return status === "maintenance" ? "กำลังปรับปรุง" : "ใช้งานได้";
@@ -2662,6 +3864,26 @@ function formatDate(value) {
   const [year, month, day] = date.split("-");
   if (!year || !month || !day) return date;
   return `${day}/${month}/${year}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return formatDate(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hour}:${minute}`;
+}
+
+function formatCurrency(value) {
+  const numberValue = Number(value) || 0;
+  return `${numberValue.toLocaleString("th-TH", {
+    minimumFractionDigits: numberValue % 1 ? 2 : 0,
+    maximumFractionDigits: 2
+  })} บาท`;
 }
 
 function formatDateInputDisplay(value) {
