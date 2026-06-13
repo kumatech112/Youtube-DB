@@ -142,7 +142,7 @@ function renderTopNav() {
     return;
   }
 
-  topnav.innerHTML = `<button type="button" data-nav="customer">เช็กข้อมูลสมาชิก</button>`;
+  topnav.innerHTML = `<button type="button" data-nav="customer">ส่งสลิป / หน้าลูกค้า</button>`;
 }
 
 async function renderAdmin() {
@@ -226,8 +226,8 @@ function renderAdminShell(content) {
     ["services", "บริการลูกค้า"],
     ["slips", "สลิป/การชำระเงิน"],
     ["history", "ประวัติลูกค้า"],
-    ["promo", "หน้าโปรโมต"],
-    ["announcements", "ประกาศ/โปรโมชั่น"],
+    ["promo", "สินค้า/บริการ"],
+    ["announcements", "ประกาศ/โปรโมชัน"],
     ["groups", "Legacy กลุ่ม"],
     ["members", "Legacy สมาชิก"]
   ];
@@ -358,23 +358,26 @@ async function renderHome() {
     const availability = getPlanAvailability(plan);
     return plan.is_active && availability.status !== "full";
   }).length;
+  const promotionCount = state.announcements.filter((item) => item.is_active !== false).length;
 
   app.innerHTML = `
-    <section class="promo-hero">
-      <div class="promo-hero-copy">
+    <section class="promo-hero commerce-hero">
+      <div class="promo-hero-copy commerce-hero-main">
+        <span class="eyebrow">FKP Shop</span>
         <h1>${escapeHtml(settings.hero_title)}</h1>
-        <p>${escapeHtml(settings.hero_subtitle)}</p>
-        <div class="hero-points" aria-label="จุดเด่นบริการ">
-          <span>ราคาชัดเจน</span>
-          <span>แจ้งสถานะว่าง/เต็ม</span>
-          <span>ติดต่อร้านได้ทันที</span>
+        <p>${escapeHtml(settings.hero_subtitle || "เลือกบริการพรีเมียม ดูราคาและสถานะว่าง แล้วติดต่อร้านเพื่อเปิดใช้งานหรือต่ออายุ")}</p>
+        <div class="hero-points commerce-points" aria-label="จุดเด่นบริการ">
+          <span>ราคาและสถานะชัดเจน</span>
+          <span>สั่งซื้อผ่าน LINE/Facebook</span>
+          <span>แจ้งชำระด้วยสลิป</span>
         </div>
-        <div class="toolbar">
+        <div class="toolbar commerce-cta-row">
           ${settings.line_url ? `<a class="primary-button link-button" href="${attr(settings.line_url)}" target="_blank" rel="noopener">${escapeHtml(settings.line_label || "ติดต่อ LINE")}</a>` : ""}
           ${settings.facebook_url ? `<a class="ghost-button link-button" href="${attr(settings.facebook_url)}" target="_blank" rel="noopener">${escapeHtml(settings.facebook_label || "ติดต่อ Facebook")}</a>` : ""}
+          <button class="ghost-button" type="button" data-nav="customer">ส่งสลิป / เช็กบริการ</button>
         </div>
       </div>
-      <div class="promo-hero-panel">
+      <aside class="promo-hero-panel commerce-hero-panel" aria-label="ภาพรวมร้าน">
         <div class="hero-mini-card primary">
           <span>พร้อมขาย</span>
           <strong>${availablePlanCount}</strong>
@@ -383,8 +386,17 @@ async function renderHome() {
           <span>บริการทั้งหมด</span>
           <strong>${activePlanCount}</strong>
         </div>
-        <button class="ghost-button" type="button" data-nav="customer">เช็กข้อมูลสมาชิก</button>
-      </div>
+        <div class="hero-mini-card">
+          <span>อัปเดตร้าน</span>
+          <strong>${promotionCount}</strong>
+        </div>
+        <div class="commerce-process">
+          <strong>วิธีใช้งาน</strong>
+          <span>1. เลือกบริการที่ต้องการ</span>
+          <span>2. ติดต่อร้านเพื่อสั่งซื้อหรือต่ออายุ</span>
+          <span>3. เข้าหน้าลูกค้าเพื่อส่งสลิป</span>
+        </div>
+      </aside>
     </section>
 
     ${renderHomeAnnouncements(state.announcements || [])}
@@ -401,7 +413,9 @@ function renderHomeAnnouncements(items) {
     <section class="promo-section">
       <div class="section-header">
         <div>
-          <h2>โปรโมชันและประกาศ</h2>
+          <span class="section-kicker">Store Updates</span>
+          <h2>โปรโมชันและประกาศล่าสุด</h2>
+          <p>ข้อมูลจากร้าน อัปเดตราคา โปร และประกาศสำคัญ</p>
         </div>
       </div>
       <div class="announcement-strip">
@@ -459,7 +473,9 @@ function renderServicePlans(plans) {
     <section class="promo-section">
       <div class="section-header">
         <div>
-          <h2>สินค้าและบริการ</h2>
+          <span class="section-kicker">Services</span>
+          <h2>บริการพร้อมจำหน่าย</h2>
+          <p>เลือกบริการที่ต้องการ แล้วติดต่อร้านเพื่อเช็กคิวและเปิดใช้งาน</p>
         </div>
       </div>
       <div class="plan-grid">
@@ -477,6 +493,7 @@ function renderServicePlans(plans) {
                   <span class="plan-availability">${renderPlanAvailabilityBadge(availability)}</span>
                 </div>
                 <div class="plan-card-body">
+                  <span class="plan-service-label">บริการดิจิทัล</span>
                   <div class="plan-title-row">
                     ${
                       plan.icon_url
@@ -551,8 +568,9 @@ function renderContactSection(settings) {
   return `
     <section class="contact-band">
       <div>
-        <span class="eyebrow">Contact</span>
-        <h2>สนใจบริการหรือต้องการสอบถาม</h2>
+        <span class="eyebrow">Order / Renew</span>
+        <h2>ต้องการซื้อใหม่หรือต่ออายุ</h2>
+        <p>ติดต่อร้านก่อนชำระเงิน จากนั้นใช้รหัสลูกค้าเพื่อส่งสลิปและติดตามสถานะ</p>
       </div>
       <div class="toolbar">
         ${settings.line_url ? `<a class="primary-button link-button" href="${attr(settings.line_url)}" target="_blank" rel="noopener">${escapeHtml(settings.line_label || "ติดต่อ LINE")}</a>` : ""}
@@ -1702,7 +1720,7 @@ function renderPromoAdmin() {
     <section class="section-block">
       <div class="section-header">
         <div>
-          <h2>ตั้งค่าหน้าโปรโมต</h2>
+          <h2>ตั้งค่าสินค้าและหน้าร้าน</h2>
           <p>หน้าแรกของเว็บจะแสดงข้อมูลนี้ให้ทุกคนเห็น</p>
         </div>
       </div>
@@ -1732,7 +1750,7 @@ function renderPromoAdmin() {
           <input name="facebook_label" value="${attr(settings.facebook_label)}" placeholder="ติดต่อ Facebook" />
         </label>
         <div class="toolbar full">
-          <button class="primary-button" type="submit">บันทึกหน้าโปรโมต</button>
+          <button class="primary-button" type="submit">บันทึกหน้าร้าน</button>
         </div>
       </form>
     </section>
@@ -1860,9 +1878,9 @@ function renderCustomer() {
       <section class="customer-login">
         <div class="customer-login-card">
           <div class="customer-login-copy">
-            <span class="eyebrow">FKP Member</span>
-            <h1>ตรวจสอบบริการและแจ้งชำระเงิน</h1>
-            <p>ดูบริการของคุณ ส่งสลิป และติดตามสถานะการตรวจสอบ</p>
+            <span class="eyebrow">FKP Shop Customer</span>
+            <h1>เช็กบริการและส่งสลิป</h1>
+            <p>กรอกรหัสลูกค้าที่ได้รับจากร้าน เพื่อดูบริการ วันหมดอายุ และแจ้งชำระเงิน</p>
           </div>
           <form class="form-grid" data-form="customer-code">
             <label class="field full">
@@ -1875,8 +1893,8 @@ function renderCustomer() {
             </div>
           </form>
           <div class="customer-login-note">
-            <strong>สำหรับลูกค้าของร้าน</strong>
-            <span>ข้อมูลจะแสดงตามรหัสที่ได้รับเท่านั้น</span>
+            <strong>ขั้นตอนใช้งาน</strong>
+            <span>ติดต่อร้านเพื่อสั่งซื้อหรือต่ออายุก่อน แล้วใช้หน้านี้ส่งหลักฐานการชำระเงิน</span>
           </div>
         </div>
       </section>
@@ -1890,9 +1908,9 @@ function renderCustomer() {
   app.innerHTML = `
     <div class="customer-page-header">
       <div>
-        <span class="eyebrow">ข้อมูลของคุณ</span>
-        <h1>สวัสดี ${escapeHtml(state.portal.customer.display_name)}</h1>
-        <p>ตรวจสอบบริการที่ใช้อยู่และส่งสลิปหลังจากโอนเงินแล้ว</p>
+        <span class="eyebrow">Customer Portal</span>
+        <h1>${escapeHtml(state.portal.customer.display_name)}</h1>
+        <p>บริการที่ใช้อยู่ วันหมดอายุ และสถานะสลิปของคุณ</p>
       </div>
       <div class="toolbar">
         <button class="ghost-button" type="button" data-action="refresh-customer">รีเฟรชข้อมูล</button>
@@ -1949,7 +1967,7 @@ function renderCustomerServices(services) {
       <div class="section-header">
         <div>
           <h2>บริการของคุณ</h2>
-          <p>เลือกบริการจากรายการนี้เมื่อส่งสลิปต่ออายุ</p>
+          <p>ใช้รายการนี้เป็นข้อมูลอ้างอิงเมื่อส่งสลิปหรือติดต่อร้าน</p>
         </div>
       </div>
       <div class="customer-private-card-grid">
@@ -3101,7 +3119,7 @@ async function saveSiteSettings(form) {
 
   await checked(supabase.from("site_settings").upsert(payload, { onConflict: "id" }));
   state.homeLoaded = false;
-  await reloadAfterSave("บันทึกหน้าโปรโมตแล้ว");
+  await reloadAfterSave("บันทึกหน้าร้านแล้ว");
 }
 
 async function saveServicePlan(form) {
