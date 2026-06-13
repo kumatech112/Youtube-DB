@@ -60,6 +60,57 @@ create table if not exists public.audit_logs (
   created_at timestamptz not null default now()
 );
 
+-- Repair columns when a previous partial run already created the tables.
+alter table public.customers add column if not exists display_name text;
+alter table public.customers add column if not exists access_code text;
+alter table public.customers add column if not exists status text not null default 'active';
+alter table public.customers add column if not exists admin_note text;
+alter table public.customers add column if not exists legacy_member_id uuid references public.members(id) on delete set null;
+alter table public.customers add column if not exists needs_access_code_review boolean not null default false;
+alter table public.customers add column if not exists created_at timestamptz not null default now();
+alter table public.customers add column if not exists updated_at timestamptz not null default now();
+create unique index if not exists customers_legacy_member_id_key
+on public.customers(legacy_member_id)
+where legacy_member_id is not null;
+
+alter table public.customer_services add column if not exists customer_id uuid references public.customers(id) on delete cascade;
+alter table public.customer_services add column if not exists service_plan_id uuid references public.service_plans(id) on delete set null;
+alter table public.customer_services add column if not exists status text not null default 'active';
+alter table public.customer_services add column if not exists started_on date;
+alter table public.customer_services add column if not exists expires_on date;
+alter table public.customer_services add column if not exists legacy_member_id uuid references public.members(id) on delete set null;
+alter table public.customer_services add column if not exists admin_note text;
+alter table public.customer_services add column if not exists created_at timestamptz not null default now();
+alter table public.customer_services add column if not exists updated_at timestamptz not null default now();
+create unique index if not exists customer_services_legacy_member_id_key
+on public.customer_services(legacy_member_id)
+where legacy_member_id is not null;
+
+alter table public.payment_slips add column if not exists customer_id uuid references public.customers(id) on delete cascade;
+alter table public.payment_slips add column if not exists customer_service_id uuid references public.customer_services(id) on delete set null;
+alter table public.payment_slips add column if not exists service_plan_id uuid references public.service_plans(id) on delete set null;
+alter table public.payment_slips add column if not exists amount numeric(12, 2);
+alter table public.payment_slips add column if not exists paid_at timestamptz;
+alter table public.payment_slips add column if not exists slip_path text;
+alter table public.payment_slips add column if not exists status text not null default 'pending_review';
+alter table public.payment_slips add column if not exists customer_note text;
+alter table public.payment_slips add column if not exists admin_note text;
+alter table public.payment_slips add column if not exists reviewed_by uuid references auth.users(id) on delete set null;
+alter table public.payment_slips add column if not exists reviewed_at timestamptz;
+alter table public.payment_slips add column if not exists created_at timestamptz not null default now();
+alter table public.payment_slips add column if not exists updated_at timestamptz not null default now();
+
+alter table public.audit_logs add column if not exists actor_id uuid references auth.users(id) on delete set null;
+alter table public.audit_logs add column if not exists actor_type text not null default 'system';
+alter table public.audit_logs add column if not exists action text;
+alter table public.audit_logs add column if not exists entity_type text;
+alter table public.audit_logs add column if not exists entity_id uuid;
+alter table public.audit_logs add column if not exists customer_id uuid references public.customers(id) on delete set null;
+alter table public.audit_logs add column if not exists before_data jsonb;
+alter table public.audit_logs add column if not exists after_data jsonb;
+alter table public.audit_logs add column if not exists note text;
+alter table public.audit_logs add column if not exists created_at timestamptz not null default now();
+
 create index if not exists customers_access_code_idx on public.customers(access_code);
 create index if not exists customers_status_idx on public.customers(status);
 create index if not exists customer_services_customer_id_idx on public.customer_services(customer_id);
