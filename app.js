@@ -18,6 +18,9 @@ const state = {
   session: null,
   adminTab: "dashboard",
   adminLoaded: false,
+  adminLoadedResources: new Set(),
+  adminLoadedTabs: new Set(),
+  adminLoadToken: 0,
   homeLoaded: false,
   groups: [],
   members: [],
@@ -40,6 +43,42 @@ const state = {
   customerSearchQuery: "",
   paymentSlipFilter: "pending_review"
 };
+
+const ADMIN_TABS = [
+  ["dashboard", "ภาพรวม"],
+  ["customers", "ลูกค้า"],
+  ["services", "บริการลูกค้า"],
+  ["slips", "สลิป/การชำระเงิน"],
+  ["history", "ประวัติลูกค้า"],
+  ["promo", "สินค้า/บริการ"],
+  ["announcements", "ประกาศ/โปรโมชัน"],
+  ["groups", "Legacy กลุ่ม"],
+  ["members", "Legacy สมาชิก"]
+];
+
+const ADMIN_TAB_RESOURCES = {
+  dashboard: ["customers", "customerServices", "paymentSlips", "servicePlans", "groups", "members"],
+  customers: ["customers", "customerServices", "paymentSlips"],
+  services: ["customers", "customerServices", "servicePlans"],
+  slips: ["customers", "customerServices", "paymentSlips", "servicePlans"],
+  history: ["customers", "customerServices", "paymentSlips", "auditLogs"],
+  promo: ["siteSettings", "servicePlans"],
+  announcements: ["announcements"],
+  groups: ["groups", "members"],
+  members: ["groups", "members"]
+};
+
+const ADMIN_ALL_RESOURCES = [
+  "groups",
+  "members",
+  "customers",
+  "customerServices",
+  "paymentSlips",
+  "auditLogs",
+  "announcements",
+  "servicePlans",
+  "siteSettings"
+];
 
 document.addEventListener("click", handleClick);
 document.addEventListener("submit", handleSubmit);
@@ -65,7 +104,7 @@ async function init() {
 
   supabase.auth.onAuthStateChange((_event, session) => {
     state.session = session;
-    state.adminLoaded = false;
+    resetAdminDataCache();
     void render();
   });
 
@@ -147,49 +186,40 @@ function renderTopNav() {
 
 async function renderAdmin() {
   if (!state.session) {
-    state.adminLoaded = false;
+    resetAdminDataCache();
     app.innerHTML = renderLogin();
     return;
   }
 
-  if (!state.adminLoaded) {
+  if (!app.querySelector("[data-admin-shell]")) {
     app.innerHTML = renderAdminShell(`
-      <section class="empty-state">
-        <h1>กำลังโหลดข้อมูลหลังบ้าน</h1>
-      </section>
+      ${renderAdminPanelLoading("กำลังเตรียมหน้าต่างข้อมูล")}
     `);
+  }
+
+  updateAdminTabsActive();
+  const contentEl = app.querySelector("[data-admin-content]");
+  if (!contentEl) return;
+
+  const activeTab = state.adminTab;
+  const loadToken = ++state.adminLoadToken;
+
+  if (!state.adminLoadedTabs.has(activeTab)) {
+    contentEl.innerHTML = renderAdminPanelLoading(`กำลังโหลด ${getAdminTabLabel(activeTab)}`);
 
     try {
-      await loadAdminData();
-      state.adminLoaded = true;
+      await ensureAdminTabData(activeTab);
+      state.adminLoadedTabs.add(activeTab);
     } catch (error) {
-      app.innerHTML = renderAdminShell(`
-        <section class="empty-state">
-          <h1>ไม่สามารถโหลดข้อมูลได้</h1>
-          <p>${escapeHtml(error.message)}</p>
-          <div class="toolbar">
-            <button class="ghost-button" type="button" data-action="refresh-admin">ลองโหลดใหม่</button>
-            <button class="danger-button" type="button" data-action="logout">ออกจากระบบ</button>
-          </div>
-        </section>
-      `);
+      if (loadToken !== state.adminLoadToken || activeTab !== state.adminTab || state.route !== "admin") return;
+      contentEl.innerHTML = renderAdminPanelError(error);
       return;
     }
   }
 
-  const content = {
-    dashboard: renderDashboard(),
-    customers: renderCustomersAdmin(),
-    services: renderCustomerServicesAdmin(),
-    slips: renderPaymentSlipsAdmin(),
-    history: renderCustomerHistoryAdmin(),
-    promo: renderPromoAdmin(),
-    announcements: renderAnnouncementsAdmin(),
-    groups: renderGroupsAdmin(),
-    members: renderMembersAdmin()
-  }[state.adminTab];
-
-  app.innerHTML = renderAdminShell(content);
+  if (loadToken !== state.adminLoadToken || activeTab !== state.adminTab || state.route !== "admin") return;
+  updateAdminTabsActive();
+  contentEl.innerHTML = renderAdminTabContent(activeTab);
 }
 
 function renderLogin() {
@@ -220,20 +250,8 @@ function renderLogin() {
 }
 
 function renderAdminShell(content) {
-  const tabs = [
-    ["dashboard", "ภาพรวม"],
-    ["customers", "ลูกค้า"],
-    ["services", "บริการลูกค้า"],
-    ["slips", "สลิป/การชำระเงิน"],
-    ["history", "ประวัติลูกค้า"],
-    ["promo", "สินค้า/บริการ"],
-    ["announcements", "ประกาศ/โปรโมชัน"],
-    ["groups", "Legacy กลุ่ม"],
-    ["members", "Legacy สมาชิก"]
-  ];
-
   return `
-    <div class="admin-shell">
+    <div class="admin-shell" data-admin-shell>
       <div class="page-header admin-header">
         <div>
           <span class="eyebrow">FKP Admin</span>
@@ -247,7 +265,7 @@ function renderAdminShell(content) {
         </div>
       </div>
       <div class="tabs admin-tabs">
-        ${tabs
+        ${ADMIN_TABS
           .map(
             ([key, label]) => `
               <button class="tab ${state.adminTab === key ? "is-active" : ""}" type="button" data-tab="${key}">
@@ -257,8 +275,57 @@ function renderAdminShell(content) {
           )
           .join("")}
       </div>
-      ${content}
+      <div class="admin-content-panel" data-admin-content>
+        ${content}
+      </div>
     </div>
+  `;
+}
+
+function renderAdminTabContent(tab) {
+  return {
+    dashboard: renderDashboard(),
+    customers: renderCustomersAdmin(),
+    services: renderCustomerServicesAdmin(),
+    slips: renderPaymentSlipsAdmin(),
+    history: renderCustomerHistoryAdmin(),
+    promo: renderPromoAdmin(),
+    announcements: renderAnnouncementsAdmin(),
+    groups: renderGroupsAdmin(),
+    members: renderMembersAdmin()
+  }[tab] || renderAdminPanelError(new Error("ไม่พบเมนูหลังบ้าน"));
+}
+
+function getAdminTabLabel(tab) {
+  return ADMIN_TABS.find(([key]) => key === tab)?.[1] || "ข้อมูล";
+}
+
+function updateAdminTabsActive() {
+  document.querySelectorAll("[data-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.tab === state.adminTab);
+  });
+}
+
+function renderAdminPanelLoading(title) {
+  return `
+    <section class="empty-state admin-panel-state">
+      <span class="admin-loader" aria-hidden="true"></span>
+      <h1>${escapeHtml(title)}</h1>
+      <p>กำลังดึงข้อมูลเฉพาะหน้าต่างนี้</p>
+    </section>
+  `;
+}
+
+function renderAdminPanelError(error) {
+  return `
+    <section class="empty-state admin-panel-state">
+      <h1>ไม่สามารถโหลดข้อมูลได้</h1>
+      <p>${escapeHtml(error.message)}</p>
+      <div class="toolbar">
+        <button class="ghost-button" type="button" data-action="refresh-admin">ลองโหลดใหม่</button>
+        <button class="danger-button" type="button" data-action="logout">ออกจากระบบ</button>
+      </div>
+    </section>
   `;
 }
 
@@ -1926,7 +1993,7 @@ function renderCustomer() {
       <div>
         <span class="eyebrow">Customer Portal</span>
         <h1>${escapeHtml(state.portal.customer.display_name)}</h1>
-        <p>บริการที่ใช้อยู่ วันหมดอายุ และสถานะสลิปของคุณ</p>
+        <p>บริการที่ใช้อยู่ วันหมดอายุ และประวัติสลิปของคุณ</p>
       </div>
       <div class="toolbar">
         <button class="ghost-button" type="button" data-action="refresh-customer">รีเฟรชข้อมูล</button>
@@ -1934,7 +2001,7 @@ function renderCustomer() {
       </div>
     </div>
 
-    ${renderCustomerCommercialSummary(services, slips)}
+    ${renderCustomerCommercialSummary(services)}
     ${renderCustomerServices(services)}
     ${renderCustomerSlipSubmissionForm()}
     ${renderCustomerSlipHistory(slips)}
@@ -1942,9 +2009,8 @@ function renderCustomer() {
   `;
 }
 
-function renderCustomerCommercialSummary(services, slips) {
+function renderCustomerCommercialSummary(services) {
   const activeServices = services.filter((service) => service.status === "active").length;
-  const pendingSlips = slips.filter((slip) => slip.status === "pending_review").length;
   const nextDue = services
     .map((service) => getDueInfo(service.expires_on))
     .filter(Boolean)
@@ -1960,12 +2026,8 @@ function renderCustomerCommercialSummary(services, slips) {
         <span>บริการใช้งานอยู่</span>
         <strong>${activeServices}</strong>
       </div>
-      <div class="summary-card">
-        <span>สลิปรอตรวจ</span>
-        <strong>${pendingSlips}</strong>
-      </div>
       <div class="summary-card wide">
-        <span>ครบกำหนดถัดไป</span>
+        <span>รอบชำระถัดไป</span>
         <strong>${nextDue ? formatDate(nextDue.date) : "-"}</strong>
         ${nextDue ? renderDueBadge(nextDue) : `<span class="badge">ยังไม่มีวันหมดอายุ</span>`}
       </div>
@@ -2303,74 +2365,98 @@ function renderCustomerPrivateMemberCard(member, group) {
 }
 
 async function loadAdminData() {
-  const [
-    groups,
-    members,
-    customers,
-    customerServices,
-    paymentSlips,
-    auditLogs,
-    announcements,
-    servicePlans,
-    siteSettings
-  ] = await Promise.all([
-    supabase.from("groups").select("*").order("group_name", { ascending: true }),
-    supabase.from("members").select("*").order("member_name", { ascending: true }),
-    supabase.from("customers").select("*").order("display_name", { ascending: true }),
-    supabase
+  await loadAdminResources(ADMIN_ALL_RESOURCES);
+  ADMIN_TABS.forEach(([key]) => state.adminLoadedTabs.add(key));
+  state.adminLoaded = true;
+}
+
+async function ensureAdminTabData(tab) {
+  await loadAdminResources(ADMIN_TAB_RESOURCES[tab] || []);
+  state.adminLoaded = ADMIN_ALL_RESOURCES.every((name) => state.adminLoadedResources.has(name));
+}
+
+async function loadAdminResources(resourceNames) {
+  const missing = [...new Set(resourceNames)].filter((name) => !state.adminLoadedResources.has(name));
+  if (!missing.length) return;
+
+  await Promise.all(missing.map((name) => loadAdminResource(name)));
+}
+
+async function loadAdminResource(name) {
+  if (name === "groups") {
+    const result = await supabase.from("groups").select("*").order("group_name", { ascending: true });
+    assertAdminResult(result);
+    state.groups = result.data || [];
+  } else if (name === "members") {
+    const result = await supabase.from("members").select("*").order("member_name", { ascending: true });
+    assertAdminResult(result);
+    state.members = result.data || [];
+  } else if (name === "customers") {
+    const result = await supabase.from("customers").select("*").order("display_name", { ascending: true });
+    assertAdminResult(result);
+    state.customers = result.data || [];
+  } else if (name === "customerServices") {
+    const result = await supabase
       .from("customer_services")
       .select("*, customer:customers(*), service_plan:service_plans(*)")
-      .order("expires_on", { ascending: true, nullsFirst: false }),
-    supabase
+      .order("expires_on", { ascending: true, nullsFirst: false });
+    assertAdminResult(result);
+    state.customerServices = result.data || [];
+  } else if (name === "paymentSlips") {
+    const result = await supabase
       .from("payment_slips")
       .select("*, customer:customers(*), customer_service:customer_services(*), service_plan:service_plans(*)")
-      .order("created_at", { ascending: false }),
-    supabase
+      .order("created_at", { ascending: false });
+    assertAdminResult(result);
+    state.paymentSlips = await attachPaymentSlipSignedUrls(result.data || []);
+  } else if (name === "auditLogs") {
+    const result = await supabase
       .from("audit_logs")
       .select("*, customer:customers(*)")
       .order("created_at", { ascending: false })
-      .limit(300),
-    supabase
+      .limit(300);
+    assertAdminResult(result);
+    state.auditLogs = result.data || [];
+  } else if (name === "announcements") {
+    const result = await supabase
       .from("announcements")
       .select("*")
       .order("display_order", { ascending: true })
-      .order("created_at", { ascending: false }),
-    supabase
+      .order("created_at", { ascending: false });
+    assertAdminResult(result);
+    state.announcements = result.data || [];
+  } else if (name === "servicePlans") {
+    const result = await supabase
       .from("service_plans")
       .select("*")
       .order("display_order", { ascending: true })
-      .order("created_at", { ascending: false }),
-    supabase.from("site_settings").select("*").eq("id", 1).maybeSingle()
-  ]);
+      .order("created_at", { ascending: false });
+    assertAdminResult(result);
+    state.servicePlans = result.data || [];
+  } else if (name === "siteSettings") {
+    const result = await supabase.from("site_settings").select("*").eq("id", 1).maybeSingle();
+    assertAdminResult(result);
+    state.siteSettings = result.data || getDefaultSiteSettings();
+  } else {
+    throw new Error(`ไม่รู้จักชุดข้อมูลหลังบ้าน: ${name}`);
+  }
 
-  [
-    groups,
-    members,
-    customers,
-    customerServices,
-    paymentSlips,
-    auditLogs,
-    announcements,
-    servicePlans,
-    siteSettings
-  ].forEach((result) => {
-    if (result.error) {
-      if (String(result.error.message || "").toLowerCase().includes("does not exist")) {
-        throw new Error("ยังไม่ได้รัน supabase/commercial-system.sql ใน Supabase SQL Editor");
-      }
-      throw result.error;
-    }
-  });
+  state.adminLoadedResources.add(name);
+}
 
-  state.groups = groups.data || [];
-  state.members = members.data || [];
-  state.customers = customers.data || [];
-  state.customerServices = customerServices.data || [];
-  state.paymentSlips = await attachPaymentSlipSignedUrls(paymentSlips.data || []);
-  state.auditLogs = auditLogs.data || [];
-  state.announcements = announcements.data || [];
-  state.servicePlans = servicePlans.data || [];
-  state.siteSettings = siteSettings.data || getDefaultSiteSettings();
+function assertAdminResult(result) {
+  if (!result.error) return;
+  if (String(result.error.message || "").toLowerCase().includes("does not exist")) {
+    throw new Error("ยังไม่ได้รัน supabase/commercial-system.sql ใน Supabase SQL Editor");
+  }
+  throw result.error;
+}
+
+function resetAdminDataCache() {
+  state.adminLoaded = false;
+  state.adminLoadedResources.clear();
+  state.adminLoadedTabs.clear();
+  state.adminLoadToken += 1;
 }
 
 async function loadHomeData() {
@@ -2589,7 +2675,7 @@ async function handleClick(event) {
   if (tab) {
     state.adminTab = tab.dataset.tab;
     state.editing = null;
-    await render();
+    await renderAdmin();
     return;
   }
 
@@ -2611,19 +2697,19 @@ async function handleClick(event) {
 
     if (action === "logout") {
       await supabase.auth.signOut();
-      state.adminLoaded = false;
+      resetAdminDataCache();
       await render();
       return;
     }
 
     if (action === "refresh-admin") {
-      state.adminLoaded = false;
+      resetAdminDataCache();
       await render();
       return;
     }
 
     if (action === "export-admin-report") {
-      exportAdminReport();
+      await exportAdminReport();
       return;
     }
 
@@ -2791,7 +2877,7 @@ async function loginAdmin(form) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   state.session = data.session;
-  state.adminLoaded = false;
+  resetAdminDataCache();
   showToast("เข้าสู่ระบบแล้ว");
   await render();
 }
@@ -3312,9 +3398,18 @@ async function markMemberPaid(memberId) {
   await reloadAfterSave(`อัปเดทวันชำระถัดไปเป็น ${formatDate(nextDueDate)}`);
 }
 
-function exportAdminReport() {
+async function exportAdminReport() {
   if (!state.adminLoaded) {
-    throw new Error("กรุณารอให้โหลดข้อมูลหลังบ้านให้เสร็จก่อน");
+    const contentEl = app.querySelector("[data-admin-content]");
+    const previousContent = contentEl?.innerHTML;
+    if (contentEl) contentEl.innerHTML = renderAdminPanelLoading("กำลังเตรียมไฟล์ Export");
+    try {
+      await loadAdminData();
+    } catch (error) {
+      if (contentEl) contentEl.innerHTML = previousContent || renderAdminPanelError(error);
+      throw error;
+    }
+    if (contentEl) contentEl.innerHTML = renderAdminTabContent(state.adminTab);
   }
 
   const filteredMembers = getFilteredMembers(getSortedMembers());
@@ -3564,7 +3659,7 @@ function escapeXml(value) {
 
 async function reloadAfterSave(message) {
   state.editing = null;
-  state.adminLoaded = false;
+  resetAdminDataCache();
   showToast(message);
   await render();
 }
@@ -3809,7 +3904,7 @@ function getDueInfo(value) {
 
   const days = Math.round((due.getTime() - today.getTime()) / 86400000);
   let status = "normal";
-  let label = "รอชำระ";
+  let label = "รอบชำระถัดไป";
 
   if (days < 0) {
     status = "overdue";

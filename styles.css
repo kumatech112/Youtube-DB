@@ -400,6 +400,38 @@ textarea:focus-visible {
   backdrop-filter: blur(12px);
 }
 
+.admin-content-panel {
+  min-height: 320px;
+  animation: commercePanelIn 220ms ease both;
+}
+
+.admin-panel-state {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-loader {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #e8edf4;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: adminSpin 700ms linear infinite;
+}
+
+@keyframes adminSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .grid {
   display: grid;
   gap: var(--space-3);
