@@ -1,22 +1,22 @@
 :root {
-  --bg: #f6f7f9;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f1f4f7;
-  --surface-3: #e5eaf0;
-  --text: #15191f;
-  --muted: #687382;
-  --line: #dbe1e8;
-  --accent: #c02b5c;
-  --accent-strong: #8f1d42;
-  --accent-soft: #fff0f5;
+  --surface-2: #f7f7f7;
+  --surface-3: #f2f2f2;
+  --text: #222222;
+  --muted: #6a6a6a;
+  --line: #dddddd;
+  --accent: #ff385c;
+  --accent-strong: #e00b41;
+  --accent-soft: #fff1f4;
   --danger: #b4234a;
   --warning: #9a5b00;
   --success: #0f7a54;
   --info: #1d4ed8;
-  --shadow: 0 16px 38px rgba(15, 23, 42, 0.1);
-  --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.07);
-  --shadow-flat: 0 1px 0 rgba(15, 23, 42, 0.08);
-  --radius: 8px;
+  --shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-soft: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-flat: 0 1px 0 rgba(0, 0, 0, 0.08);
+  --radius: 14px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -30,6 +30,7 @@
 
 html {
   color-scheme: light;
+  overflow-x: hidden;
 }
 
 body {
@@ -37,9 +38,10 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: "Airbnb Cereal VF", Circular, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   line-height: 1.5;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 body::before {
@@ -139,7 +141,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: 0;
-  box-shadow: 0 0 0 3px rgba(192, 43, 92, 0.16);
+  box-shadow: 0 0 0 3px rgba(255, 56, 92, 0.18);
 }
 
 .topbar {
@@ -150,9 +152,9 @@ textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  min-height: 64px;
-  padding: 12px clamp(16px, 4vw, 44px);
-  background: rgba(255, 255, 255, 0.94);
+  min-height: 80px;
+  padding: 16px clamp(20px, 5vw, 64px);
+  background: rgba(255, 255, 255, 0.96);
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow-flat);
@@ -213,13 +215,13 @@ textarea:focus-visible {
 .primary-button,
 .danger-button,
 .icon-button {
-  min-height: 38px;
+  min-height: 42px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 999px;
   background: var(--surface);
   color: var(--text);
-  padding: 8px 13px;
-  font-weight: 700;
+  padding: 9px 16px;
+  font-weight: 600;
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
@@ -247,7 +249,7 @@ textarea:focus-visible {
   border-color: var(--accent);
   background: var(--accent);
   color: #fff;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .primary-button:hover {
@@ -308,7 +310,7 @@ textarea:focus-visible {
   margin-bottom: 0;
   padding: 18px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 12px;
   background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
@@ -366,6 +368,7 @@ textarea:focus-visible {
 
 .section-header h2 {
   font-size: 22px;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -503,12 +506,12 @@ textarea:focus-visible {
 .field select,
 .field textarea {
   width: 100%;
-  min-height: 40px;
+  min-height: 52px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: #fffafd;
+  border-radius: 10px;
+  background: #fff;
   color: var(--text);
-  padding: 9px 10px;
+  padding: 13px 12px;
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
@@ -580,8 +583,8 @@ textarea:focus-visible {
 .field select:focus,
 .field textarea:focus {
   outline: 0;
-  box-shadow: 0 0 0 3px rgba(192, 43, 92, 0.14);
-  border-color: var(--accent);
+  box-shadow: none;
+  border-color: var(--text);
   background: #fff;
 }
 
@@ -938,6 +941,7 @@ code {
   grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
   gap: var(--space-4);
   align-items: stretch;
+  min-width: 0;
   margin-bottom: var(--space-5);
   animation: fadeUp 420ms ease both;
 }
@@ -960,6 +964,7 @@ code {
   padding: clamp(22px, 4vw, 38px);
   background: var(--surface);
   overflow: hidden;
+  min-width: 0;
 }
 
 .promo-hero-copy::after {
@@ -974,8 +979,9 @@ code {
 .promo-hero-copy h1 {
   max-width: 760px;
   margin: 0;
-  font-size: clamp(34px, 5vw, 56px);
-  line-height: 1.04;
+  font-size: clamp(32px, 4.5vw, 48px);
+  font-weight: 700;
+  line-height: 1.08;
   letter-spacing: 0;
 }
 
@@ -994,6 +1000,7 @@ code {
   padding: var(--space-4);
   background: #fff;
   animation: liftIn 360ms ease 80ms both;
+  min-width: 0;
 }
 
 .hero-points {
@@ -1015,6 +1022,61 @@ code {
   content: "✓";
   margin-right: 6px;
   color: var(--success);
+}
+
+.market-search-pill {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  width: min(100%, 720px);
+  margin-top: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.market-search-pill > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 13px 22px;
+  border-right: 1px solid var(--line);
+}
+
+.market-search-pill span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.market-search-pill strong {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.market-search-pill button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 92px;
+  min-height: 52px;
+  margin: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  padding: 0 18px;
+  font-weight: 700;
+}
+
+.market-search-pill button:hover {
+  background: var(--accent-strong);
 }
 
 .hero-mini-card {
@@ -1220,7 +1282,7 @@ code {
   min-height: 0;
   color: var(--text);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.28;
   overflow: hidden;
   display: -webkit-box;
@@ -1256,7 +1318,7 @@ code {
   margin-top: 2px;
   color: var(--accent-strong);
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.1;
 }
 
@@ -1942,6 +2004,7 @@ code {
   .toolbar button,
   .tab {
     flex: 1 1 auto;
+    min-width: 0;
   }
 
   .stats-grid,
@@ -1976,6 +2039,15 @@ code {
     padding: 16px;
   }
 
+  .promo-hero-copy,
+  .promo-hero-panel,
+  .customer-login-card,
+  .customer-page-header,
+  .form-grid {
+    width: 100%;
+    min-width: 0;
+  }
+
   .promo-hero-copy h1 {
     font-size: 30px;
   }
@@ -1993,13 +2065,39 @@ code {
     font-size: 12px;
   }
 
+  .market-search-pill {
+    grid-template-columns: 1fr;
+    border-radius: var(--radius);
+  }
+
+  .market-search-pill > div {
+    padding: 12px 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .market-search-pill button {
+    width: auto;
+    min-height: 46px;
+    margin: 8px;
+  }
+
   .promo-hero-panel {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     padding: 14px;
   }
 
   .promo-hero-panel > .ghost-button {
-    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .commerce-cta-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .commerce-cta-row .link-button,
+  .commerce-cta-row button {
     width: 100%;
   }
 
@@ -2120,7 +2218,9 @@ code {
   }
 
   .app-shell {
-    width: min(100% - 24px, 1220px);
+    width: calc(100% - 24px);
+    max-width: 1220px;
+    overflow: hidden;
     padding-top: 18px;
   }
 }

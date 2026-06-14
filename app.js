@@ -371,6 +371,19 @@ async function renderHome() {
           <span>สั่งซื้อผ่าน LINE/Facebook</span>
           <span>แจ้งชำระด้วยสลิป</span>
         </div>
+        <div class="market-search-pill" aria-label="ขั้นตอนบริการ FKP Shop">
+          <div>
+            <span>บริการ</span>
+            <strong>เลือกแพ็กเกจที่ต้องการ</strong>
+          </div>
+          <div>
+            <span>ติดต่อร้าน</span>
+            <strong>คุยยอดและคิวก่อนชำระ</strong>
+          </div>
+          <button type="button" data-nav="customer" aria-label="ไปหน้าลูกค้าเพื่อส่งสลิป">
+            ส่งสลิป
+          </button>
+        </div>
         <div class="toolbar commerce-cta-row">
           ${settings.line_url ? `<a class="primary-button link-button" href="${attr(settings.line_url)}" target="_blank" rel="noopener">${escapeHtml(settings.line_label || "ติดต่อ LINE")}</a>` : ""}
           ${settings.facebook_url ? `<a class="ghost-button link-button" href="${attr(settings.facebook_url)}" target="_blank" rel="noopener">${escapeHtml(settings.facebook_label || "ติดต่อ Facebook")}</a>` : ""}
