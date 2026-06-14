@@ -1,11 +1,11 @@
 :root {
   --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f7f7f7;
-  --surface-3: #f2f2f2;
+  --surface-2: #f8fafc;
+  --surface-3: #eef2f6;
   --text: #222222;
   --muted: #6a6a6a;
-  --line: #dddddd;
+  --line: #e3e7ee;
   --accent: #ff385c;
   --accent-strong: #e00b41;
   --accent-soft: #fff1f4;
@@ -13,10 +13,13 @@
   --warning: #9a5b00;
   --success: #0f7a54;
   --info: #1d4ed8;
-  --shadow: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.1);
-  --shadow-soft: 0 0 0 1px rgba(0, 0, 0, 0.02), 0 2px 6px rgba(0, 0, 0, 0.04);
-  --shadow-flat: 0 1px 0 rgba(0, 0, 0, 0.08);
-  --radius: 14px;
+  --shadow: 0 14px 34px rgba(15, 23, 42, 0.1), 0 2px 7px rgba(15, 23, 42, 0.06);
+  --shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.07), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-flat: 0 1px 0 rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 12px 28px rgba(15, 23, 42, 0.07);
+  --radius: 12px;
+  --radius-sm: 10px;
+  --control-height: 48px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -2597,5 +2600,370 @@ code {
 
   .customer-private-card-head {
     flex-direction: column;
+  }
+}
+
+/* Commerce UI refresh: compact boxes, new buttons, controlled calendar button */
+@keyframes commercePanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes buttonSettle {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  55% {
+    transform: translateY(1px) scale(0.985);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes calendarTick {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+.topnav button,
+.tab,
+.ghost-button,
+.primary-button,
+.danger-button,
+.icon-button,
+.pagination-page,
+.image-lightbox-close,
+.link-button {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  box-shadow: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.topnav button:hover,
+.tab:hover,
+.ghost-button:hover,
+.icon-button:hover,
+.pagination-page:hover,
+.link-button:hover {
+  border-color: #bfc7d2;
+  background: #f8fafc;
+  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+button:active,
+.primary-button:active,
+.ghost-button:active,
+.danger-button:active,
+.link-button:active,
+.pagination-page:active,
+.date-picker-button:active {
+  animation: buttonSettle 170ms ease both;
+}
+
+.primary-button {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.primary-button:hover {
+  border-color: #111827;
+  background: #020617;
+  color: #fff;
+  box-shadow: 0 9px 20px rgba(15, 23, 42, 0.18), 0 0 0 3px rgba(255, 56, 92, 0.1);
+  transform: translateY(-1px);
+}
+
+.ghost-button {
+  border-color: #d7dde6;
+  background: #fff;
+  color: #1f2937;
+}
+
+.danger-button {
+  border-color: #f3c4cb;
+  background: #fff7f8;
+  color: #b4234a;
+}
+
+.danger-button:hover {
+  border-color: #b4234a;
+  background: #fff1f4;
+  box-shadow: 0 8px 18px rgba(180, 35, 74, 0.12);
+  transform: translateY(-1px);
+}
+
+.topnav button.is-active,
+.tab.is-active,
+.pagination-page.is-active {
+  border-color: rgba(255, 56, 92, 0.45);
+  background: #111827;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+
+.pagination-controls button:disabled,
+.primary-button.is-disabled,
+.link-button.is-disabled {
+  opacity: 0.55;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
+.payment-action-button,
+.actions .ghost-button,
+.actions .danger-button,
+.actions .link-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 13px;
+  border-radius: 9px;
+}
+
+.form-grid,
+.table-wrap,
+.tabs,
+.stat-box,
+.customer-history-head,
+.customer-login-card,
+.customer-login-note,
+.customer-page-header,
+.summary-card,
+.announcement-item,
+.group-card,
+.detail-summary-grid > div,
+.detail-row,
+.member-card,
+.admin-group-members-panel,
+.customer-entry .section-block,
+.customer-own-payment-panel,
+.customer-own-payment-item,
+.customer-private-head,
+.customer-private-member-card,
+.customer-private-payment-box,
+.customer-private-meta-grid > div,
+.promo-hero-copy,
+.promo-hero-panel,
+.contact-band {
+  border-color: rgba(15, 23, 42, 0.1);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+  animation: commercePanelIn 260ms ease both;
+}
+
+.form-grid,
+.customer-login-card,
+.customer-page-header,
+.customer-private-member-card,
+.customer-own-payment-panel {
+  padding: clamp(14px, 2vw, 18px);
+}
+
+.table-wrap {
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.stat-box:hover,
+.summary-card:hover,
+.announcement-item:hover,
+.group-card:hover,
+.member-card:hover,
+.customer-private-member-card:hover,
+.customer-own-payment-item:hover {
+  border-color: rgba(15, 23, 42, 0.18);
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-height: var(--control-height);
+  border-color: #d8dee8;
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+  font-size: 14px;
+  line-height: 1.35;
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(255, 56, 92, 0.1);
+}
+
+.date-control {
+  grid-template-columns: minmax(0, 1fr) var(--control-height);
+  gap: 8px;
+  width: 100%;
+  max-width: 278px;
+  align-items: stretch;
+}
+
+.date-control .date-display-input {
+  height: var(--control-height);
+  min-height: var(--control-height);
+  min-width: 0;
+  padding: 0 12px;
+  letter-spacing: 0;
+}
+
+.date-picker-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  min-width: var(--control-height);
+  border: 1px solid #d8dee8;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: #111827;
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.03);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.date-picker-button:hover,
+.date-picker-button:focus-within {
+  border-color: #111827;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  box-shadow: 0 0 0 3px rgba(255, 56, 92, 0.1);
+  transform: translateY(-1px);
+}
+
+.date-picker-button:hover .date-picker-icon,
+.date-picker-button:focus-within .date-picker-icon {
+  animation: calendarTick 580ms ease both;
+}
+
+.date-picker-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.date-picker-icon::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 2px;
+  right: 2px;
+  border-top: 2px solid currentColor;
+}
+
+.date-picker-icon::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 4px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow:
+    6px 0 0 currentColor,
+    12px 0 0 currentColor,
+    0 5px 0 currentColor,
+    6px 5px 0 currentColor;
+}
+
+.date-picker-button input.date-native-input[type="date"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  color: transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.date-picker-button input.date-native-input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .topnav button,
+  .tab,
+  .ghost-button,
+  .primary-button,
+  .danger-button,
+  .link-button {
+    min-height: 38px;
+    padding: 8px 11px;
+    font-size: 13px;
+  }
+
+  .date-control {
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }

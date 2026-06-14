@@ -1180,14 +1180,17 @@ function renderDateField(name, isoValue, label) {
         data-date-field="${attr(name)}"
         data-date-label="${attr(label)}"
       />
-      <input
-        class="date-native-input"
-        type="date"
-        value="${attr(value)}"
-        data-date-picker
-        data-date-field="${attr(name)}"
-        aria-label="เลือก${attr(label)}จากปฏิทิน"
-      />
+      <span class="date-picker-button" data-date-picker-button>
+        <span class="date-picker-icon" aria-hidden="true"></span>
+        <input
+          class="date-native-input"
+          type="date"
+          value="${attr(value)}"
+          data-date-picker
+          data-date-field="${attr(name)}"
+          aria-label="เลือก${attr(label)}จากปฏิทิน"
+        />
+      </span>
       <input
         type="hidden"
         name="${attr(name)}"
@@ -2553,6 +2556,26 @@ async function handleClick(event) {
   const lightboxBackdrop = event.target.closest("[data-lightbox-backdrop]");
   if (lightboxBackdrop && event.target === lightboxBackdrop) {
     closeImageLightbox();
+    return;
+  }
+
+  const datePickerButton = event.target.closest("[data-date-picker-button]");
+  if (datePickerButton) {
+    const picker = datePickerButton.querySelector("[data-date-picker]");
+    if (!picker) return;
+    if (event.target !== picker) {
+      event.preventDefault();
+      picker.focus();
+      try {
+        if (typeof picker.showPicker === "function") {
+          picker.showPicker();
+        } else {
+          picker.click();
+        }
+      } catch (_error) {
+        picker.click();
+      }
+    }
     return;
   }
 
