@@ -449,7 +449,7 @@ textarea:focus-visible {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: 14px;
   margin-bottom: var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--line);
@@ -498,8 +498,8 @@ textarea:focus-visible {
 .field span,
 .checkbox-grid legend {
   color: var(--muted);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .field input,
@@ -512,6 +512,8 @@ textarea:focus-visible {
   background: #fff;
   color: var(--text);
   padding: 13px 12px;
+  font-size: 15px;
+  line-height: 1.3;
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
@@ -533,19 +535,24 @@ textarea:focus-visible {
 
 .date-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-columns: minmax(0, 1fr) 52px;
   gap: 8px;
-  width: min(100%, 320px);
+  width: 100%;
+  max-width: 300px;
+  align-items: stretch;
 }
 
 .date-control .date-display-input {
+  height: 52px;
   min-width: 0;
 }
 
-.date-control .date-native-input {
-  width: 44px;
-  min-width: 44px;
-  max-width: 44px;
+.date-control input.date-native-input[type="date"] {
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  height: 52px;
+  min-height: 52px;
   padding: 0;
   color: transparent;
   caret-color: transparent;
@@ -553,16 +560,16 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
-.date-control .date-native-input::-webkit-datetime-edit {
+.date-control input.date-native-input[type="date"]::-webkit-datetime-edit {
   display: none;
 }
 
-.date-control .date-native-input::-webkit-calendar-picker-indicator {
-  width: 22px;
-  height: 22px;
+.date-control input.date-native-input[type="date"]::-webkit-calendar-picker-indicator {
+  width: 24px;
+  height: 24px;
   margin: 0;
   cursor: pointer;
-  opacity: 0.86;
+  opacity: 0.9;
 }
 
 .searchable-group-control {
@@ -689,10 +696,11 @@ table {
 
 th,
 td {
-  padding: 11px 14px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -703,7 +711,8 @@ th {
   top: 0;
   background: #f8fafc;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 600;
   z-index: 1;
 }
 
@@ -739,8 +748,9 @@ tr:last-child td {
 }
 
 .payment-action-button {
-  min-height: 34px;
+  min-height: 36px;
   padding: 7px 12px;
+  font-size: 14px;
   white-space: nowrap;
 }
 
@@ -754,9 +764,9 @@ tr:last-child td {
 
 .slip-review-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
   gap: var(--space-2);
-  min-width: 360px;
+  min-width: 380px;
 }
 
 .slip-review-form .field:has(textarea),
